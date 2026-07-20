@@ -1,0 +1,89 @@
+import { NextRequest, NextResponse } from "next/server";
+
+import { hasValidCronAuthorization } from "@/lib/auth/cron";
+import { hasSameOrigin } from "@/lib/auth/origin";
+import { authenticateRequest } from "@/lib/auth/request";
+import { cronEnv } from "@/lib/env/cron";
+import { serverEnv } from "@/lib/env/server";
+import { generateWeeklyInsight } from "@/lib/insights/generator";
+import { withObservedJob } from "@/lib/operations/jobs";
+import type { SystemJobTrigger } from "@/lib/operations/normalize";
+import { consumeRateLimit } from "@/lib/rate-limit";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+function response(status: number, body: Record<string, unknown>): NextResponse {
+  const result = NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+  if (status === 429) result.headers.set("Retry-After", "300");
+  return result;
+}
+
+async function runWeeklyInsight(
+  includeInsight: boolean,
+  trigger: SystemJobTrigger,
+): Promise<NextResponse> {
+  try {
+    if (trigger === "manual") {
+      const allowed = await consumeRateLimit({
+        bucket: `insights:weekly:${serverEnv.USER_ID}`,
+        windowSeconds: 300,
+        maxRequests: 1,
+      });
+      if (!allowed) return response(429, { ok: false, error: "rate_limited" });
+    }
+
+    const observed = await withObservedJob({
+      jobName: "weekly_insight",
+      trigger,
+      execute: generateWeeklyInsight,
+      summarize: (result) => ({
+        weekStart: result.insight.weekStart,
+        weekEnd: result.insight.weekEnd,
+        provider: result.insight.provider,
+        memoryIndexed: result.memoryIndexed,
+      }),
+    });
+    if (observed.skipped) {
+      return response(200, { ok: true, skipped: observed.reason });
+    }
+    const result = observed.value;
+    return response(200, {
+      ok: true,
+      insightId: result.insight.id,
+      weekStart: result.insight.weekStart,
+      weekEnd: result.insight.weekEnd,
+      provider: result.insight.provider,
+      memoryIndexed: result.memoryIndexed,
+      ...(includeInsight ? { insight: result.insight } : {}),
+    });
+  } catch (error: unknown) {
+    console.error("Weekly insight generation failed", error);
+    return response(503, { ok: false, error: "unavailable" });
+  }
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (!cronEnv.CRON_SECRET) {
+    return response(503, { ok: false, error: "unavailable" });
+  }
+  if (!hasValidCronAuthorization(request)) {
+    return response(401, { ok: false, error: "unauthorized" });
+  }
+  return runWeeklyInsight(false, "cron");
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const authentication = authenticateRequest(request);
+  if (!authentication.authenticated) {
+    return response(401, { ok: false, error: "unauthorized" });
+  }
+  if (authentication.method === "session" && !hasSameOrigin(request)) {
+    return response(403, { ok: false, error: "invalid_request" });
+  }
+  return runWeeklyInsight(true, "manual");
+}

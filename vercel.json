@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npx next build",
+  "crons": [
+    {
+      "path": "/api/memory/sync-obsidian",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/sync-calendar",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/finance/sync-google-sheets",
+      "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/insights/weekly",
+      "schedule": "0 9 * * 0"
+    }
+  ]
+}

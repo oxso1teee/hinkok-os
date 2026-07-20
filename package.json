@@ -1,0 +1,61 @@
+{
+  "name": "hinkok-os",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:vercel": "npm run deploy:check && next build",
+    "backup:create": "node --env-file=.env.local --import tsx scripts/create-backup.ts",
+    "backup:verify": "node --env-file-if-exists=.env.local --import tsx scripts/verify-backup.ts",
+    "backup:restore": "node --env-file=.env.local --import tsx scripts/restore-backup.ts",
+    "ci": "npm run repo:check && npm audit --audit-level=high && npm run typecheck && npm run lint && npm run test && npm run ci:build",
+    "ci:build": "node --import tsx scripts/ci-build.ts",
+    "deploy:check": "node --import tsx scripts/check-deployment.ts",
+    "deploy:smoke": "node --import tsx scripts/smoke-deployment.ts",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "e2e:serve": "node --import tsx scripts/e2e-server.ts",
+    "repo:check": "node --import tsx scripts/check-repository.ts",
+    "start": "next start",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "secrets:generate": "node scripts/generate-secrets.mjs",
+    "telegram:webhook:set": "node scripts/set-telegram-webhook.mjs",
+    "obsidian:sync:local": "node scripts/sync-obsidian-local.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@supabase/supabase-js": "2.110.7",
+    "googleapis": "173.0.0",
+    "next": "16.2.10",
+    "openai": "6.48.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "server-only": "0.0.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "postcss": "8.5.19"
+  }
+}
