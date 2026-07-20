@@ -63,7 +63,7 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
   background:
@@ -119,9 +119,10 @@ input:disabled {
 
 .dashboard-page {
   width: min(100%, 1680px);
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 22px 30px;
+  padding: 0 max(22px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom))
+    max(22px, env(safe-area-inset-left));
 }
 
 .topbar {
@@ -132,6 +133,7 @@ input:disabled {
   min-height: 58px;
   align-items: center;
   gap: 28px;
+  padding-top: env(safe-area-inset-top);
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgb(18 8 5 / 82%), rgb(24 10 6 / 46%));
   backdrop-filter: blur(18px);
@@ -1164,7 +1166,7 @@ input:disabled {
 
 .login-page {
   display: grid;
-  min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 24px;
 }

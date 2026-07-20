@@ -490,7 +490,7 @@
 
 .crm-modal {
   width: min(100%, 700px);
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
