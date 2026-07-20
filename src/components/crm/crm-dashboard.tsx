@@ -7,7 +7,8 @@ import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useDraggable,
   useDroppable,
@@ -423,7 +424,11 @@ export function CrmDashboard({ data }: { data: CrmDashboardData }) {
   const [message, setMessage] = useState("");
   const [clock, setClock] = useState(() => new Date(data.generatedAt));
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // A delay-based constraint (not distance-based) so a normal vertical swipe
+    // to scroll the task list is not immediately hijacked as a drag on touch
+    // devices; the touch has to be held briefly before a drag commits.
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor),
   );
 
