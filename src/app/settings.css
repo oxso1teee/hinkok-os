@@ -400,6 +400,65 @@
   color: var(--danger);
 }
 
+.settings-totp-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px 18px;
+}
+
+.settings-totp-body p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-totp-secret {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: rgb(29 10 6 / 42%);
+  color: var(--orange-bright);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
+
+.settings-totp-confirm {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-totp-confirm label {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-totp-confirm label span {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-totp-confirm input {
+  width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: rgb(29 10 6 / 35%);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  letter-spacing: 0.2em;
+}
+
+.settings-totp-message {
+  color: var(--orange-bright);
+}
+
 @media (max-width: 1120px) {
   .settings-habits,
   .settings-spheres {

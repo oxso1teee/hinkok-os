@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { recordAuthAudit } from "@/lib/auth/audit";
-import { constantTimeStringEqual } from "@/lib/auth/constant-time";
 import {
   LOGIN_BACKOFF_BASE_MS,
   LOGIN_BACKOFF_MAX_MS,
@@ -10,6 +8,7 @@ import {
   LOGIN_MAX_BODY_BYTES,
   LOGIN_WINDOW_MINUTES,
 } from "@/lib/auth/constants";
+import { issueSessionResponse } from "@/lib/auth/issue-session";
 import {
   countRecentGlobalLoginFailures,
   enforceMinimumLoginTime,
@@ -20,13 +19,11 @@ import {
 import { maybeAlertOwnerOfLoginFailures } from "@/lib/auth/login-alert";
 import { sanitizeNextPath } from "@/lib/auth/navigation";
 import { hasSameOrigin } from "@/lib/auth/origin";
+import { constantTimeStringEqual } from "@/lib/auth/constant-time";
 import { verifyPasswordHash } from "@/lib/auth/password-hash";
 import { getPasswordOverride } from "@/lib/auth/password-override";
-import {
-  createSessionToken,
-  SESSION_COOKIE_NAME,
-  sessionCookieOptions,
-} from "@/lib/auth/session";
+import { createPendingLoginToken } from "@/lib/auth/pending-login";
+import { isTotpEnabled } from "@/lib/auth/totp-storage";
 import { serverEnv } from "@/lib/env/server";
 
 /**
@@ -152,31 +149,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return errorResponse(401, "invalid_credentials");
     }
 
-    const { token, payload } = createSessionToken();
     const nextPath = sanitizeNextPath(body.data.next);
 
-    await recordAuthAudit("auth.login.success", {
+    if (await isTotpEnabled()) {
+      const response = NextResponse.json(
+        { ok: true, totpRequired: true, pendingToken: createPendingLoginToken() },
+        { status: 200 },
+      );
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    }
+
+    return await issueSessionResponse(
+      nextPath,
       ip,
-      userAgent: (request.headers.get("user-agent") ?? "unknown").slice(0, 512),
-      expiresAt: new Date(payload.expiresAt * 1000).toISOString(),
-    });
-
-    const response = NextResponse.json(
-      {
-        ok: true,
-        next: nextPath,
-      },
-      { status: 200 },
+      request.headers.get("user-agent") ?? "unknown",
     );
-
-    response.headers.set("Cache-Control", "no-store");
-    response.cookies.set(
-      SESSION_COOKIE_NAME,
-      token,
-      sessionCookieOptions(payload.expiresAt),
-    );
-
-    return response;
   } catch (error: unknown) {
     console.error("Login request failed", error);
     await enforceMinimumLoginTime(startedAtMs);

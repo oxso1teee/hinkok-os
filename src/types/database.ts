@@ -707,6 +707,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      auth_totp: {
+        Row: {
+          user_id: string;
+          secret_base32: string;
+          enabled: boolean;
+          confirmed_at: string | null;
+          last_used_step: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          secret_base32: string;
+          enabled?: boolean;
+          confirmed_at?: string | null;
+          last_used_step?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          secret_base32?: string;
+          enabled?: boolean;
+          confirmed_at?: string | null;
+          last_used_step?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -977,6 +1007,13 @@ export type Database = {
           p_window_seconds?: number;
         };
         Returns: number;
+      };
+      consume_totp_step: {
+        Args: {
+          p_user_id: string;
+          p_step: number;
+        };
+        Returns: boolean;
       };
       begin_system_job: {
         Args: {

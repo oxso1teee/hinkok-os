@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { TopbarTicker } from "@/components/ui/topbar-ticker";
+import { TotpSettingsPanel } from "@/components/settings/totp-panel";
 import { BRAIN_SPHERES, type BrainSphere } from "@/lib/brain/config";
 import {
   DEFAULT_PERSONAL_SETTINGS,
@@ -382,6 +383,8 @@ export function SettingsDashboard({
             <button className="primary-button" type="submit" disabled={saveState === "saving"}>{saveState === "saving" ? "SAVING…" : "SAVE SETTINGS"}</button>
           </footer>
         </form>
+
+        <TotpSettingsPanel />
       </main>
     </div>
   );
