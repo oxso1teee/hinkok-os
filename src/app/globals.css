@@ -278,6 +278,16 @@ input:disabled {
   line-height: 1.4;
 }
 
+.system-notice-warning {
+  border-color: rgb(255 139 115 / 35%);
+  background: rgb(120 30 20 / 32%);
+  color: var(--danger);
+}
+
+.system-notice-warning span {
+  color: var(--text-soft);
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(235px, 0.76fr) minmax(540px, 1.75fr) minmax(250px, 0.86fr);

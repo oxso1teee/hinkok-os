@@ -38,6 +38,13 @@ export type HomeFinanceTotal = {
   expenses: number;
 };
 
+export type HomeDegradedCapture = {
+  id: string;
+  rawText: string;
+  createdAt: string;
+  processingError: string | null;
+};
+
 export type HomeDashboardData = {
   generatedAt: string;
   today: string;
@@ -50,6 +57,7 @@ export type HomeDashboardData = {
   calendarDays: HomeCalendarDay[];
   calendarEvents: HomeCalendarEvent[];
   finance: HomeFinanceTotal[];
+  degradedCaptures: HomeDegradedCapture[];
   stats: {
     openTasks: number;
     memoryChunks: number;
@@ -95,7 +103,7 @@ export async function getHomeDashboardData(
   const localNow = localCaptureTime(now, serverEnv.USER_TIMEZONE);
   const today = localNow.date;
   const monthStart = `${today.slice(0, 7)}-01`;
-  const [tasksResult, dailyResult, financeResult, taskCountResult, memoryCountResult, captureCountResult, calendarResult] =
+  const [tasksResult, dailyResult, financeResult, taskCountResult, memoryCountResult, captureCountResult, degradedCapturesResult, calendarResult] =
     await Promise.all([
       db()
         .from("tasks")
@@ -133,6 +141,13 @@ export async function getHomeDashboardData(
         .from("raw_captures")
         .select("id", { count: "exact", head: true })
         .eq("user_id", serverEnv.USER_ID),
+      db()
+        .from("raw_captures")
+        .select("id, raw_text, created_at, processing_error")
+        .eq("user_id", serverEnv.USER_ID)
+        .eq("processing_status", "degraded")
+        .order("created_at", { ascending: false })
+        .limit(5),
       withTimeout(
         listUpcomingGoogleCalendarEvents(now).catch(() => null),
         6_000,
@@ -169,7 +184,8 @@ export async function getHomeDashboardData(
       financeResult.error ||
       taskCountResult.error ||
       memoryCountResult.error ||
-      captureCountResult.error,
+      captureCountResult.error ||
+      degradedCapturesResult.error,
   );
 
   return {
@@ -198,6 +214,12 @@ export async function getHomeDashboardData(
       ...total,
       income: Math.round(total.income * 100) / 100,
       expenses: Math.round(total.expenses * 100) / 100,
+    })),
+    degradedCaptures: (degradedCapturesResult.data ?? []).map((row) => ({
+      id: row.id,
+      rawText: row.raw_text,
+      createdAt: row.created_at,
+      processingError: row.processing_error,
     })),
     stats: {
       openTasks: taskCountResult.count ?? 0,

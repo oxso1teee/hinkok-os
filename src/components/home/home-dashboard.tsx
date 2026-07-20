@@ -274,6 +274,21 @@ export function HomeDashboard({ data, settings }: HomeDashboardProps) {
         </div>
       ) : null}
 
+      {data.degradedCaptures.length > 0 ? (
+        <div className="system-notice system-notice-warning" role="status">
+          {data.degradedCaptures.length === 1
+            ? "1 захват сохранён не полностью"
+            : `${data.degradedCaptures.length} захватов сохранены не полностью`}
+          {" — данные не потеряны, но индексация в память, аудит или синхронизация дали сбой: "}
+          {data.degradedCaptures.map((capture, index) => (
+            <span key={capture.id}>
+              {index > 0 ? "; " : ""}
+              «{capture.rawText.length > 60 ? `${capture.rawText.slice(0, 60)}…` : capture.rawText}»
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <main className="dashboard-grid">
         <aside className="dashboard-column left-column">
           <Panel index="01" title="operator" className="operator-panel">
