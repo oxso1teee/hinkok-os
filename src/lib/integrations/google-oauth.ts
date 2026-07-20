@@ -1,6 +1,6 @@
 import "server-only";
 
-import { google } from "googleapis";
+import { google, Auth } from "googleapis";
 import { googleEnv, isGoogleOAuthConfigured } from "@/lib/env/google";
 import { serverEnv } from "@/lib/env/server";
 import { db } from "@/lib/supabase/admin";
@@ -37,7 +37,7 @@ export async function googleAuthorizationUrl(): Promise<string> {
     scope: SCOPES,
     state: transaction.state,
     code_challenge: transaction.challenge,
-    code_challenge_method: "S256",
+    code_challenge_method: Auth.CodeChallengeMethod.S256,
   });
 }
 
