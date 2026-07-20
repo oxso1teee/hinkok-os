@@ -38,7 +38,7 @@ function jsonResponse(
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
   if (!authentication.authenticated) {
     return jsonResponse(401, { ok: false, error: "unauthorized" });
   }

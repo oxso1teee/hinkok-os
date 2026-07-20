@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  if (!authenticateRequest(request).authenticated) {
+  if (!(await authenticateRequest(request)).authenticated) {
     return NextResponse.json(
       { ok: false, error: "unauthorized" },
       {

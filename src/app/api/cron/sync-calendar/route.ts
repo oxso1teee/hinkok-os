@@ -40,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return run("cron");
 }
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const auth = authenticateRequest(request);
+  const auth = await authenticateRequest(request);
   if (!auth.authenticated) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   if (auth.method === "session" && !hasSameOrigin(request)) return NextResponse.json({ ok: false, error: "invalid_origin" }, { status: 403 });
   return run("manual");

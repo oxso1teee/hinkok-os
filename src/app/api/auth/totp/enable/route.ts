@@ -22,7 +22,7 @@ function response(status: number, body: Record<string, unknown>): NextResponse {
 
 /** Confirms TOTP setup with a code from the authenticator app; enables it. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
   if (!authentication.authenticated) {
     return response(401, { ok: false, error: "unauthorized" });
   }

@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
 } from "@/lib/auth/session";
+import { recordSession } from "@/lib/auth/sessions";
 
 /** Shared by /api/auth/login (no TOTP) and /api/auth/totp/verify (with TOTP). */
 export async function issueSessionResponse(
@@ -16,6 +17,13 @@ export async function issueSessionResponse(
   userAgent: string,
 ): Promise<NextResponse> {
   const { token, payload } = createSessionToken();
+
+  await recordSession({
+    sessionId: payload.sessionId,
+    ip,
+    userAgent,
+    expiresAt: payload.expiresAt,
+  });
 
   await recordAuthAudit("auth.login.success", {
     ip,

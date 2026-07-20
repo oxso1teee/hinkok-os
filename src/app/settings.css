@@ -459,6 +459,45 @@
   color: var(--orange-bright);
 }
 
+.settings-sessions-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px 18px 18px;
+}
+
+.settings-session-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: rgb(29 10 6 / 30%);
+  font-size: 11px;
+}
+
+.settings-session-ip {
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.settings-session-agent {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-session-current {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgb(103 217 155 / 18%);
+  color: var(--green);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
 @media (max-width: 1120px) {
   .settings-habits,
   .settings-spheres {

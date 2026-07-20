@@ -8,6 +8,7 @@ import {
   expiredSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
+import { revokeSession } from "@/lib/auth/sessions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,9 +24,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
 
   if (authentication.method === "session") {
+    await revokeSession(authentication.session.sessionId);
+
     try {
       await recordAuthAudit("auth.logout", {
         ip: getClientIp(request),

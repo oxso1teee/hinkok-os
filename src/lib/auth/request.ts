@@ -8,6 +8,7 @@ import {
   type SessionPayload,
   verifySessionToken,
 } from "@/lib/auth/session";
+import { isSessionRevoked, touchSessionLastSeen } from "@/lib/auth/sessions";
 import { serverEnv } from "@/lib/env/server";
 
 export type RequestAuthentication =
@@ -27,9 +28,9 @@ export type RequestAuthentication =
       session: null;
     };
 
-export function authenticateRequest(
+export async function authenticateRequest(
   request: NextRequest,
-): RequestAuthentication {
+): Promise<RequestAuthentication> {
   const apiSecret = request.headers.get("x-api-secret");
 
   if (
@@ -47,7 +48,8 @@ export function authenticateRequest(
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = verifySessionToken(sessionToken);
 
-  if (session) {
+  if (session && !(await isSessionRevoked(session.sessionId))) {
+    touchSessionLastSeen(session.sessionId);
     return {
       authenticated: true,
       method: "session",

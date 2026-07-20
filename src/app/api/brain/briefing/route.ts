@@ -36,7 +36,7 @@ function response(status: number, body: Record<string, unknown>): NextResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
   if (!authentication.authenticated) return response(401, { ok: false, error: "unauthorized" });
   if (authentication.method === "session" && !hasSameOrigin(request)) {
     return response(403, { ok: false, error: "invalid_request" });

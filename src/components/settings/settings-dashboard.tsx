@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { TopbarTicker } from "@/components/ui/topbar-ticker";
+import { SessionsPanel } from "@/components/settings/sessions-panel";
 import { TotpSettingsPanel } from "@/components/settings/totp-panel";
 import { BRAIN_SPHERES, type BrainSphere } from "@/lib/brain/config";
 import {
@@ -385,6 +386,7 @@ export function SettingsDashboard({
         </form>
 
         <TotpSettingsPanel />
+        <SessionsPanel />
       </main>
     </div>
   );

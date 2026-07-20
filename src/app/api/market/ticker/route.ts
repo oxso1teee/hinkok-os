@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
   if (!authentication.authenticated) {
     return NextResponse.json(
       { ok: false, error: "unauthorized" },

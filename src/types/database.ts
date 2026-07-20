@@ -737,6 +737,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      auth_sessions: {
+        Row: {
+          session_id: string;
+          user_id: string;
+          ip: string | null;
+          user_agent: string | null;
+          created_at: string;
+          last_seen_at: string;
+          expires_at: string;
+          revoked_at: string | null;
+        };
+        Insert: {
+          session_id: string;
+          user_id: string;
+          ip?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at: string;
+          revoked_at?: string | null;
+        };
+        Update: {
+          session_id?: string;
+          user_id?: string;
+          ip?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+          last_seen_at?: string;
+          expires_at?: string;
+          revoked_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -1014,6 +1047,13 @@ export type Database = {
           p_step: number;
         };
         Returns: boolean;
+      };
+      revoke_other_sessions: {
+        Args: {
+          p_user_id: string;
+          p_keep_session_id: string;
+        };
+        Returns: number;
       };
       begin_system_job: {
         Args: {

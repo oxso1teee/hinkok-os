@@ -3,6 +3,7 @@ import "server-only";
 import {
   createHmac,
   randomBytes,
+  randomUUID,
   timingSafeEqual,
 } from "node:crypto";
 
@@ -21,6 +22,7 @@ export type SessionPayload = {
   issuedAt: number;
   expiresAt: number;
   nonce: string;
+  sessionId: string;
 };
 
 export type SessionCookieOptions = {
@@ -47,7 +49,7 @@ function isSessionPayload(value: unknown): value is SessionPayload {
   const candidate = value as Record<string, unknown>;
 
   return (
-    Object.keys(candidate).length === 5 &&
+    Object.keys(candidate).length === 6 &&
     candidate.version === SESSION_VERSION &&
     typeof candidate.subject === "string" &&
     candidate.subject === serverEnv.USER_ID &&
@@ -56,7 +58,11 @@ function isSessionPayload(value: unknown): value is SessionPayload {
     typeof candidate.expiresAt === "number" &&
     Number.isSafeInteger(candidate.expiresAt) &&
     typeof candidate.nonce === "string" &&
-    /^[a-zA-Z0-9_-]{22}$/.test(candidate.nonce)
+    /^[a-zA-Z0-9_-]{22}$/.test(candidate.nonce) &&
+    typeof candidate.sessionId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+      candidate.sessionId,
+    )
   );
 }
 
@@ -71,6 +77,7 @@ export function createSessionToken(now = new Date()): {
     issuedAt,
     expiresAt: issuedAt + SESSION_TTL_SECONDS,
     nonce: randomBytes(16).toString("base64url"),
+    sessionId: randomUUID(),
   };
 
   const encodedPayload = Buffer.from(

@@ -40,7 +40,7 @@ function jsonError(
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
 
   if (!authentication.authenticated) {
     return jsonError(401, "unauthorized");

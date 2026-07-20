@@ -3,7 +3,8 @@ export const SESSION_COOKIE_NAME =
     ? "__Host-hinkok_session"
     : "hinkok_session";
 
-export const SESSION_VERSION = 1;
+// Bumped from 1 to 2 for the sessionId field (P0-AUTH-03 session list/revocation).
+export const SESSION_VERSION = 2;
 export const SESSION_TTL_SECONDS = 12 * 60 * 60;
 export const SESSION_CLOCK_SKEW_SECONDS = 5 * 60;
 export const MAX_SESSION_COOKIE_LENGTH = 2048;

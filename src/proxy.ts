@@ -57,11 +57,11 @@ function continueRequest(
   return applyContentSecurityPolicy(response, policy);
 }
 
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { nonce, policy } = createContentSecurityPolicy();
   const pathname = request.nextUrl.pathname;
   const isPublicPath = PUBLIC_PATHS.has(pathname);
-  const authentication = authenticateRequest(request);
+  const authentication = await authenticateRequest(request);
 
   if (pathname === "/login" && authentication.authenticated) {
     return applyContentSecurityPolicy(
