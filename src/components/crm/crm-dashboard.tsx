@@ -634,6 +634,7 @@ export function CrmDashboard({ data }: { data: CrmDashboardData }) {
           </section>
         ) : (
           <DndContext
+            id="crm-board"
             sensors={sensors}
             collisionDetection={closestCorners}
             onDragStart={(event: DragStartEvent) => {

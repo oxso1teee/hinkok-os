@@ -93,6 +93,65 @@ Never place production secrets into the browser job. The checked-in workflow
 does not reference GitHub secrets and the harness does not inherit a repository
 `.env` file.
 
+## Local real-database specs
+
+`e2e/*.spec.ts` (above) only covers what its hermetic mock understands: two
+auth-flow operations, by design (see "Isolation model"). It intentionally
+cannot cover the other 7 modules, because each dashboard's initial load is a
+server-rendered page issuing several parallel Supabase queries (the CRM board
+alone issues 8: active tasks, archived tasks, entities, and four separate
+counts) — precisely replicating PostgREST's query/filter/count wire format for
+all of those by hand would be a large, fragile undertaking, and it would
+duplicate logic that already exists correctly in PostgREST itself.
+
+`e2e-local/*.spec.ts` + `playwright.local.config.ts` fill that gap by running
+against a **real** local Postgres + PostgREST stack instead of a hand-written
+mock. It is deliberately **not** wired into `npm run e2e` or CI — it needs
+local infrastructure the hermetic gate is explicitly designed to avoid.
+
+Local setup (already used to write and verify the CRM spec in this repo):
+
+```bash
+# 1. A disposable Postgres+pgvector container
+docker run -d --name hinkok-os-pg -e POSTGRES_PASSWORD=<pw> -e POSTGRES_DB=hinkok \
+  -p 5544:5432 pgvector/pgvector:pg16
+
+# 2. Create the anon/authenticated/service_role roles Supabase provides for
+#    free, then apply supabase/migrations/*.sql in order with psql.
+
+# 3. PostgREST, pointed at that database
+docker run -d --name hinkok-os-postgrest --add-host=host.docker.internal:host-gateway \
+  -e PGRST_DB_URI="postgres://postgres:<pw>@host.docker.internal:5544/hinkok" \
+  -e PGRST_DB_SCHEMA=public -e PGRST_DB_ANON_ROLE=anon \
+  -e PGRST_JWT_SECRET=<32+ byte secret> -p 5555:3000 postgrest/postgrest:latest
+
+# 4. A tiny local proxy stripping the `/rest/v1` prefix supabase-js always
+#    sends (real Supabase's Kong gateway does this; bare PostgREST does not) —
+#    see the ~30-line http.createServer script this session wrote at
+#    /tmp/.../scratchpad/rest-proxy.mjs. Point NEXT_PUBLIC_SUPABASE_URL at it.
+
+# 5. Mint anon/service_role JWTs (HS256, `{ role: "anon" | "service_role" }`,
+#    signed with the same PGRST_JWT_SECRET), set NEXT_PUBLIC_SUPABASE_ANON_KEY
+#    / SUPABASE_SERVICE_ROLE_KEY.
+
+# 6. Seed representative rows for entities/tasks/raw_captures/memory_chunks/
+#    daily_logs/weekly_insights/system_job_runs, then:
+npm run dev  # on port 3000, or whatever PLAYWRIGHT_LOCAL_BASE_URL points at
+
+PLAYWRIGHT_LOCAL_PASSWORD=<your DASHBOARD_PASSWORD> \
+PLAYWRIGHT_LOCAL_BASE_URL=http://localhost:3000 \
+  npx playwright test --config=playwright.local.config.ts
+```
+
+Making these CI-portable is a real follow-up, not something to route around:
+either (a) extend `scripts/e2e-server.ts`'s mock with exact handlers for each
+module's query shapes (keeps the zero-extra-infra property but is
+maintenance-heavy and drifts from real PostgREST behavior over time), or
+(b) add real Postgres + PostgREST as GitHub Actions `services:` and run the
+same migration/seed steps above in a CI step (more infrastructure, but tests
+the real thing and won't silently drift). (b) is the more maintainable choice
+if this repo grows past a single-person project.
+
 Official references:
 
 - [Playwright continuous integration](https://playwright.dev/docs/ci)
