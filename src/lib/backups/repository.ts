@@ -31,7 +31,7 @@ type BackupTable = {
   select(columns: "*"): BackupQuery;
   upsert(
     rows: BackupRow[],
-    options: { onConflict: string; ignoreDuplicates: false },
+    options: { onConflict: string; ignoreDuplicates: boolean },
   ): PromiseLike<{ error: DatabaseError }>;
 };
 type BackupDatabase = {
@@ -155,7 +155,10 @@ export async function restoreBackupSnapshot(
       const batch = rows.slice(from, from + RESTORE_BATCH_SIZE);
       const { error } = await backupDb().from(definition.name).upsert(batch, {
         onConflict: definition.conflict,
-        ignoreDuplicates: false,
+        // audit_log's service_role grant is select+insert only (append-only
+        // by design), so ON CONFLICT DO UPDATE would fail with 42501; use
+        // DO NOTHING there instead of the update-existing-rows default.
+        ignoreDuplicates: definition.appendOnly,
       });
       if (error) {
         throw new Error(`Unable to restore ${definition.name}`, { cause: error });

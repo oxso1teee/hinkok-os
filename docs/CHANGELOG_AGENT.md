@@ -839,3 +839,75 @@ e2e-тестирования через `/api/captures` с фиктивным `O
 (25/25) и герметичный `npm run e2e` (12/12) зелёные после изменений.
 Не проверено: реальная доставка сообщения в Telegram (нет настроенного прод-бота в этой
 сессии) — код-путь идентичен уже использованному и проверенному в `[P0-AUTH-04]`.
+
+---
+
+[P0-BACKUP-01] verify-clean-restore-cycle — сделано, найдены и исправлены ДВА реальных
+бага (не гипотетических — оба воспроизведены напрямую на живом стеке Postgres+PostgREST
+и только затем исправлены).
+
+**Баг 1**: `npm run backup:create`/`backup:restore` падали немедленно с `Error: This
+module cannot be imported from a Client Component module`. Причина: эти CLI-скрипты
+запускаются через голый `node --import tsx`, минуя бандлер Next.js, поэтому условный
+`react-server`-экспорт пакета `server-only` (transitively через
+`src/lib/backups/repository.ts` → `src/lib/audit.ts` → `src/lib/supabase/admin.ts` /
+`src/lib/env/server.ts`) никогда не резолвится в свою no-op заглушку. Исправлено
+добавлением `--conditions=react-server` в npm-скрипты `backup:create`/`backup:restore`
+(`package.json`) — а не удалением `import "server-only"` из библиотечных файлов, где он
+легитимно и безопасно используется всей остальной частью приложения. Отдельно проверено,
+что `deploy:check`/`smoke-deployment`/`ci-build`/`check-repository`/`e2e-server`/
+`backup:verify` НЕ проходят через эту цепочку импортов и в этом флаге не нуждаются.
+
+**Баг 2**: после исправления бага 1 полный цикл `backup:create` → truncate всех 9 таблиц
+→ `backup:restore --apply` стабильно падал на последней таблице: `Backup restore failed:
+Unable to restore audit_log`. Прямой curl-запрос воспроизвёл точную причину:
+`{"code":"42501","message":"permission denied for table audit_log"}`. Корень —
+`supabase/migrations/202607170001_initial_schema.sql:347`:
+`grant select, insert on table public.audit_log to service_role;` — сознательно БЕЗ
+UPDATE (append-only дизайн, есть также триггер `prevent_audit_log_mutation()`), а
+`restoreBackupSnapshot` вызывал `.upsert(batch, {onConflict, ignoreDuplicates: false})`
+одинаково для ВСЕХ таблиц — `ignoreDuplicates: false` генерирует `ON CONFLICT DO UPDATE`,
+что требует UPDATE-привилегию (Postgres проверяет её на этапе планирования запроса, даже
+если реального конфликта строк не происходит). Это не только баг локального стенда — при
+реальном деплое restore audit_log упал бы точно так же при первом же совпадении id.
+Исправлено: в `src/lib/backups/config.ts` у каждой записи `BACKUP_TABLES` добавлено поле
+`appendOnly` (`true` только у `audit_log`), и `restoreBackupSnapshot`
+(`src/lib/backups/repository.ts`) теперь передаёт `ignoreDuplicates: definition.appendOnly`
+вместо жёстко зашитого `false` — для audit_log это даёт `ON CONFLICT DO NOTHING`, что и
+семантически правильно для неизменяемой append-only таблицы (пропустить уже
+существующие строки, а не пытаться их обновить).
+
+**Как проверено (не чтением кода, а полным сквозным циклом на реальной БД)**:
+1. В локальный `audit_log` вставлено 10 синтетических тестовых строк напрямую через
+   PostgREST insert (это разрешено — insert-привилегия есть), чтобы у таблицы было что
+   бэкапить и восстанавливать (до этого локальная тестовая `audit_log` оказалась пустой
+   — побочный эффект предыдущей неудачной попытки restore, которая упала до вставки
+   единой строки).
+2. Сняты точные "до"-счётчики по всем 9 таблицам через PostgREST (`Content-Range`
+   заголовок): entities=6, raw_captures=48, tasks=35, daily_logs=31,
+   finance_transactions=0, weekly_insights=2, memory_chunks=52, personal_settings=1,
+   audit_log=10 (итого 185).
+3. `npm run backup:create` — подтверждён `Rows: 185`, совпадает с суммой "до".
+4. Все 9 таблиц полностью очищены через `TRUNCATE ... CASCADE` (TRUNCATE, в отличие от
+   UPDATE/DELETE, не проходит через триггер `prevent_audit_log_mutation()`, поэтому
+   он не мешает тестовой очистке) — подтверждено PostgREST-запросом, что везде 0 строк.
+5. `npm run backup:restore -- <path> --apply` (с `HINKOK_RESTORE_CONFIRM=RESTORE`) —
+   завершился без ошибок: `Backup restore completed with idempotent upserts.`
+6. Построчная сверка "после" через PostgREST для всех 9 таблиц: entities=6,
+   raw_captures=48, tasks=35, daily_logs=31, finance_transactions=0, weekly_insights=2,
+   memory_chunks=52, personal_settings=1 — точное совпадение с "до". `audit_log=11`
+   (10 восстановленных + 1 новая запись `backup.restored`, которую сам
+   `restoreBackupSnapshot` честно пишет в конце как побочный эффект — ожидаемо, не баг).
+7. Проверка идемпотентности: **повторный** запуск того же `backup:restore --apply` без
+   очистки таблиц — завершился так же чисто, без ошибок 42501, без дублирования старых
+   10 строк audit_log (сработал `ON CONFLICT DO NOTHING`); `audit_log` вырос ровно на 1
+   (12) — снова только новая запись `backup.restored` от этого второго запуска. Все
+   остальные 8 таблиц не изменились. Это подтверждает, что restore теперь безопасно
+   повторяем (ключевое требование раздела DoD "восстановление с --apply идемпотентно").
+
+`npm run typecheck`/`lint`/`test` (127/127)/`build`/`repo:check` зелёные, `e2e-local`
+(25/25) и герметичный `npm run e2e` (12/12) зелёные после изменений (перезапущены после
+пересборки дев-сервера, т.к. окружение между частями сессии перезапускалось).
+Не проверено: восстановление на РЕАЛЬНОМ Supabase (Kong-гейтвей, а не локальный
+самодельный proxy) — код-путь идентичен, но реальный прод-запуск restore не выполнялся
+в этой сессии, только на локальном стенде, воспроизводящем те же роли/гранты.
