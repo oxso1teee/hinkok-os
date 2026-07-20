@@ -574,3 +574,24 @@ service_role JWT в `e2e-local/health.spec.ts` — поймано `npm run repo:
 Не проверено: поведение на реальном проде Vercel (нет доступа к прод-`RECOVERY_CODE`/
 деплою), Telegram-алерт при использовании recovery (в промпте не требуется для этого
 пункта — см. отдельно `[P0-AUTH-04]`).
+
+---
+
+[P0-AUTH-05] rotate-secrets-runbook — сделано, проверено по коду (не только по README-
+намерениям). Написан `docs/SECRET_ROTATION.md`: пошагово по каждому секрету
+(`AUTH_SECRET`, `DASHBOARD_PASSWORD`, `API_SECRET`, `TELEGRAM_WEBHOOK_SECRET`,
+`CRON_SECRET`, новый `RECOVERY_CODE`, `GOOGLE_TOKEN_ENCRYPTION_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`) — что именно ломается при ротации и что нужно сделать после.
+Специально выделен раздел "не бесплатно ротировать" с явным разбором
+`GOOGLE_TOKEN_ENCRYPTION_KEY` (промпт прямо просил на это обратить внимание): по коду
+`src/lib/integrations/google-token-crypto.ts` подтверждено — версионирования ключа НЕТ,
+payload хранит только формат (`v1.<iv>.<tag>.<ciphertext>`), не версию ключа, поэтому
+смена ключа необратимо делает нечитаемыми уже сохранённые Google-токены — единственный
+путь восстановления сервиса это переподключение Google (disconnect → connect заново).
+Также отмечено, что `DASHBOARD_PASSWORD` перестаёт на что-либо влиять, если уже был
+использован `/api/auth/recover` (override в БД побеждает) — прямое следствие только что
+реализованного `[P0-AUTH-01]`.
+Утверждение про "Supabase позволяет держать два активных service-role ключа для
+безопасной ротации" оставлено с явной оговоркой проверить это в актуальной консоли
+Supabase перед тем, как полагаться — агент не имеет доступа к реальному Supabase
+dashboard, чтобы подтвердить это лично.
