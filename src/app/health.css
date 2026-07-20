@@ -20,7 +20,7 @@
   padding: 11px 13px 9px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background:
     linear-gradient(145deg, rgb(255 137 76 / 4%), transparent 48%),
     rgb(43 16 9 / 68%);
@@ -128,7 +128,7 @@
   min-height: 260px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background:
     linear-gradient(145deg, rgb(255 137 76 / 2.5%), transparent 42%),
     rgb(43 16 9 / 62%);
@@ -319,7 +319,7 @@
 .health-activity-list > div > div {
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(112 50 27 / 30%);
 }
 

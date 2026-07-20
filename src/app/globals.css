@@ -19,6 +19,37 @@
   --danger: #ff8b73;
   --track: rgb(128 61 30 / 28%);
   --shadow: 0 20px 55px rgb(0 0 0 / 22%);
+
+  /* Radii */
+  --radius-card: 7px;
+  --radius-pill: 999px;
+
+  /* Journal mood scale (rad -> awful) */
+  --mood-rad: #789f70;
+  --mood-good: #789f70;
+  --mood-meh: #a59f42;
+  --mood-meh-ink: #3a2a0f;
+  --mood-bad: #d0a553;
+  --mood-awful: #bd744e;
+  --mood-active-border: #ffe0a0;
+
+  /* Journal 30-day mood bar chart bands */
+  --mood-bar-good: #a7bf59;
+  --mood-bar-middle: #dbb551;
+  --mood-bar-low: #e17846;
+
+  /* Journal mood x sleep correlation bars */
+  --sleep-bar-from: #b8cc5f;
+  --sleep-bar-to: #e2d871;
+  --sleep-bar-worst-from: #d87547;
+  --sleep-bar-worst-to: #ec9d56;
+
+  /* CRM priority badges (hot / warm / cold) */
+  --priority-hot: #ef7140;
+  --priority-hot-text: #f58d65;
+  --priority-warm: #d99a55;
+  --priority-warm-text: #d8aa76;
+  --priority-cold-text: #c18f70;
 }
 
 * {
@@ -478,7 +509,7 @@ input:disabled {
 .key-chip {
   padding: 3px 5px;
   border: 1px solid rgb(239 121 47 / 32%);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--orange-bright);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 5px;
@@ -885,7 +916,7 @@ input:disabled {
   height: 3px;
   margin-top: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--track);
 }
 
@@ -1155,7 +1186,7 @@ input:disabled {
   margin-bottom: 25px;
   place-items: center;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: rgb(239 121 47 / 14%);
   color: var(--orange-bright);
   font-size: 19px;

@@ -169,7 +169,7 @@
 .operations-chip,
 .operations-table-status {
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 7px;
   color: var(--text-soft);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

@@ -64,7 +64,7 @@
   gap: 12px;
   padding: 6px 7px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: rgb(45 17 9 / 56%);
   box-shadow: inset 0 1px rgb(255 255 255 / 2%);
 }
@@ -116,7 +116,7 @@
   height: 28px;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   outline: 0;
   background: transparent;
   color: var(--muted);
@@ -167,7 +167,7 @@
 .crm-column {
   min-width: 0;
   padding: 0 2px 16px;
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   transition: background 150ms ease;
 }
 
@@ -206,7 +206,7 @@
   min-width: 0;
   padding: 11px 10px 8px;
   border: 1px solid rgb(124 55 27 / 34%);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: linear-gradient(145deg, rgb(63 24 12 / 92%), rgb(39 15 9 / 88%));
   box-shadow: 0 8px 20px rgb(0 0 0 / 12%), inset 0 1px rgb(255 255 255 / 2%);
   transition: transform 140ms ease, border-color 140ms ease, opacity 140ms ease;
@@ -235,13 +235,13 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 2px;
-  border-radius: 7px 0 0 7px;
-  background: #ef7140;
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
+  background: var(--priority-hot);
   content: "";
 }
 
 .crm-task-card.priority-warm::before {
-  background: #d99a55;
+  background: var(--priority-warm);
 }
 
 .crm-card-main {
@@ -316,8 +316,8 @@
 .priority-chip {
   padding: 2px 5px;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  color: #c18f70;
+  border-radius: var(--radius-pill);
+  color: var(--priority-cold-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 5px;
   letter-spacing: 0.08em;
@@ -326,12 +326,12 @@
 
 .priority-chip.hot {
   border-color: rgb(239 113 64 / 58%);
-  color: #f58d65;
+  color: var(--priority-hot-text);
 }
 
 .priority-chip.warm {
   border-color: rgb(217 154 85 / 46%);
-  color: #d8aa76;
+  color: var(--priority-warm-text);
 }
 
 .crm-card-footer {
@@ -391,7 +391,7 @@
   min-height: 74px;
   place-items: center;
   border: 1px dashed rgb(139 62 30 / 24%);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   color: var(--muted-dark);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 6px;
@@ -415,14 +415,14 @@
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(46 17 9 / 52%);
 }
 
 .crm-smart-search button {
   min-width: 72px;
   border: 1px solid #f28a45;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(180deg, #f58b43, #d96026);
   color: #2b1007;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -471,7 +471,7 @@
   grid-column: 1 / -1;
   padding: 50px 20px;
   border: 1px dashed var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   color: var(--muted);
   text-align: center;
   font-size: 10px;
@@ -604,7 +604,7 @@
   padding: 8px 13px;
   transform: translateX(-50%);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(45 17 9 / 94%);
   color: var(--text-soft);
   font-size: 8px;

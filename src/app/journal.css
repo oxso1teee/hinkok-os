@@ -11,7 +11,7 @@
 .journal-panel {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: rgb(43 16 9 / 62%);
   box-shadow: 0 14px 38px rgb(0 0 0 / 11%), inset 0 1px rgb(255 255 255 / 2%);
 }
@@ -98,30 +98,33 @@
   place-items: center;
   border: 1px solid rgb(216 168 80 / 28%);
   border-radius: 50%;
-  background: #a59f42;
-  color: #3a2a0f;
+  background: var(--mood-meh);
+  color: var(--mood-meh-ink);
   font-size: 18px;
   font-weight: 700;
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 }
 
-.journal-moods button:nth-of-type(1) strong,
+.journal-moods button:nth-of-type(1) strong {
+  background: var(--mood-rad);
+}
+
 .journal-moods button:nth-of-type(2) strong {
-  background: #789f70;
+  background: var(--mood-good);
 }
 
 .journal-moods button:nth-of-type(4) strong {
-  background: #d0a553;
+  background: var(--mood-bad);
 }
 
 .journal-moods button:nth-of-type(5) strong {
-  background: #bd744e;
+  background: var(--mood-awful);
 }
 
 .journal-moods button:hover strong,
 .journal-moods button.active strong {
   transform: translateY(-2px) scale(1.04);
-  border-color: #ffe0a0;
+  border-color: var(--mood-active-border);
   box-shadow: 0 0 18px rgb(219 183 87 / 28%);
 }
 
@@ -152,16 +155,16 @@
   width: 100%;
   min-height: 5px;
   border-radius: 1px 1px 0 0;
-  background: #a7bf59;
+  background: var(--mood-bar-good);
   opacity: 0.95;
 }
 
 .mood-bar.low > span {
-  background: #e17846;
+  background: var(--mood-bar-low);
 }
 
 .mood-bar.middle > span {
-  background: #dbb551;
+  background: var(--mood-bar-middle);
 }
 
 .mood-bar.empty > span {
@@ -220,7 +223,7 @@
 .sleep-band-list > div > div {
   height: 7px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(105 51 28 / 26%);
 }
 
@@ -228,12 +231,12 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #b8cc5f, #e2d871);
+  background: linear-gradient(90deg, var(--sleep-bar-from), var(--sleep-bar-to));
   box-shadow: 0 0 10px rgb(184 204 95 / 12%);
 }
 
 .sleep-band-list > div:first-child i {
-  background: linear-gradient(90deg, #d87547, #ec9d56);
+  background: linear-gradient(90deg, var(--sleep-bar-worst-from), var(--sleep-bar-worst-to));
 }
 
 .journal-body-grid {
@@ -321,7 +324,7 @@
   min-height: 28px;
   padding: 0 12px;
   border: 1px solid #c8723b;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(159 69 30 / 52%);
   color: #e8b18d;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -428,7 +431,7 @@
 .journal-archive-entry > header button {
   padding: 3px 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

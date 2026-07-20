@@ -80,7 +80,7 @@
 .brain-weekly-panel,
 .brain-sphere-panel {
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: rgb(42 16 9 / 57%);
   box-shadow: 0 14px 40px rgb(0 0 0 / 12%), inset 0 1px rgb(255 255 255 / 2%);
 }
@@ -133,7 +133,7 @@
   min-height: 25px;
   padding: 0 11px;
   border: 1px solid #f28a45;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(180deg, #f58b43, #d96026);
   color: #2a0f06;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -192,7 +192,7 @@
 .brain-weekly-metrics span {
   padding: 3px 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 5px;
@@ -266,7 +266,7 @@
 .brain-briefing-section > header button {
   min-width: 70px;
   border: 1px solid #f28a45;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(180deg, #f58b43, #d96026);
   color: #2a0f06;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -602,7 +602,7 @@
 .brain-task-line em {
   padding: 2px 5px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: #c48160;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 5px;
