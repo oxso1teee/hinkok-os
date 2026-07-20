@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import { BRAIN_SPHERES, type BrainSphere } from "@/lib/brain/config";
 import {
   DEFAULT_PERSONAL_SETTINGS,
@@ -257,7 +258,7 @@ export function SettingsDashboard({
           <Link className="active" href="/settings">SETTINGS</Link>
           <Link href="/backup">BACKUP</Link>
         </nav>
-        <div className="topbar-stats"><span>PERSONAL CONFIG</span><time dateTime={clock.toISOString()}>{formatClock(clock)}</time></div>
+        <div className="topbar-stats"><TopbarTicker /><span>PERSONAL CONFIG</span><time dateTime={clock.toISOString()}>{formatClock(clock)}</time></div>
       </header>
 
       {dataStatus === "unavailable" ? (

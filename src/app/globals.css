@@ -204,6 +204,37 @@ input:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.topbar-ticker {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-soft);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.topbar-ticker-arrow {
+  font-size: 7px;
+}
+
+.topbar-ticker-arrow.is-up {
+  color: var(--green);
+}
+
+.topbar-ticker-arrow.is-down {
+  color: var(--danger);
+}
+
+.topbar-ticker-arrow.is-flat {
+  color: var(--muted);
+}
+
 .system-notice {
   margin: 10px 0 0;
   padding: 9px 12px;

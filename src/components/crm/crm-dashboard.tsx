@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import {
   DndContext,
   KeyboardSensor,
@@ -552,7 +554,7 @@ export function CrmDashboard({ data }: { data: CrmDashboardData }) {
           <Link href="/settings">SETTINGS</Link>
           <Link href="/backup">BACKUP</Link>
         </nav>
-        <div className="topbar-stats"><time dateTime={clock.toISOString()}>{clockText(clock, data.timeZone)}</time></div>
+        <div className="topbar-stats"><TopbarTicker /><time dateTime={clock.toISOString()}>{clockText(clock, data.timeZone)}</time></div>
       </header>
 
       {data.dataStatus === "partial" ? <div className="system-notice" role="status">CRM работает в безопасном частичном режиме. Примените последнюю миграцию или проверьте Supabase.</div> : null}

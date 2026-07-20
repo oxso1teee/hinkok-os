@@ -5,6 +5,7 @@ import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Icon } from "@/components/ui/icon";
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import {
   BRAIN_SPHERES,
   type BrainSphere,
@@ -246,7 +247,7 @@ export function BrainDashboard({ data }: { data: BrainDashboardData }) {
           <Link href="/settings">SETTINGS</Link>
           <Link href="/backup">BACKUP</Link>
         </nav>
-        <div className="topbar-stats"><time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time></div>
+        <div className="topbar-stats"><TopbarTicker /><time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time></div>
       </header>
 
       {data.dataStatus === "partial" ? <div className="system-notice" role="status">BRAIN показывает безопасное частичное состояние. Проверьте Supabase и примените последнюю миграцию.</div> : null}

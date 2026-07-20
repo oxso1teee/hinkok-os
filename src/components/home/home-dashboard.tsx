@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Icon } from "@/components/ui/icon";
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import type { HomeDashboardData } from "@/lib/home/data";
 import type { HomeGoal } from "@/lib/home/normalize";
 import type { PersonalSettings } from "@/lib/settings/normalize";
@@ -260,6 +261,7 @@ export function HomeDashboard({ data, settings }: HomeDashboardProps) {
           <Link href="/backup">BACKUP</Link>
         </nav>
         <div className="topbar-stats">
+          <TopbarTicker />
           <span><b>{data.stats.openTasks}</b> tasks</span>
           <span><b>{compactNumber(data.stats.memoryChunks)}</b> memory</span>
           <time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time>

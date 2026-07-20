@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import type { HealthDashboardData } from "@/lib/health/data";
 import type {
   HealthDay,
@@ -291,6 +292,7 @@ export function HealthDashboard({ data }: { data: HealthDashboardData }) {
           <Link href="/backup">BACKUP</Link>
         </nav>
         <div className="topbar-stats">
+          <TopbarTicker />
           <span>{data.latestSync ? `APPLE HEALTH · ${shortDate(data.latestSync.date)}` : "APPLE HEALTH · NOT SYNCED"}</span>
           <time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time>
         </div>

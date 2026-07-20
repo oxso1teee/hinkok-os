@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import { BACKUP_TABLES, type BackupTableName } from "@/lib/backups/config";
 
 type BackupOverview = {
@@ -83,7 +84,7 @@ export function BackupDashboard({ overview }: { overview: BackupOverview }) {
         <nav className="main-nav" aria-label="Основная навигация">
           <Link href="/">HOME</Link><Link href="/crm">CRM</Link><Link href="/brain">BRAIN</Link><Link href="/journal">JOURNAL</Link><Link href="/health">HEALTH</Link><Link href="/operations">STATUS</Link><Link href="/settings">SETTINGS</Link><Link className="active" href="/backup">BACKUP</Link>
         </nav>
-        <div className="topbar-stats"><span>ENCRYPTED EXPORT</span><time dateTime={clock.toISOString()}>{formatClock(clock)}</time></div>
+        <div className="topbar-stats"><TopbarTicker /><span>ENCRYPTED EXPORT</span><time dateTime={clock.toISOString()}>{formatClock(clock)}</time></div>
       </header>
 
       {overview.dataStatus === "unavailable" ? <div className="system-notice" role="alert">Не удалось проверить все таблицы. Создавайте backup только после восстановления Supabase.</div> : null}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import type {
   OperationsDashboardData,
   OperationsJob,
@@ -198,6 +199,7 @@ export function OperationsDashboard({
           <Link href="/backup">BACKUP</Link>
         </nav>
         <div className="topbar-stats">
+          <TopbarTicker />
           <span>PRIVATE OPERATIONS</span>
           <time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time>
         </div>

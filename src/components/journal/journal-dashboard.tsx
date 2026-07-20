@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Icon } from "@/components/ui/icon";
+import { TopbarTicker } from "@/components/ui/topbar-ticker";
 import { JOURNAL_MOODS, type JournalMood } from "@/lib/journal/config";
 import type { JournalDashboardData } from "@/lib/journal/data";
 import type { JournalDay } from "@/lib/journal/normalize";
@@ -139,7 +140,7 @@ export function JournalDashboard({ data }: { data: JournalDashboardData }) {
           <Link href="/settings">SETTINGS</Link>
           <Link href="/backup">BACKUP</Link>
         </nav>
-        <div className="topbar-stats"><time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time></div>
+        <div className="topbar-stats"><TopbarTicker /><time dateTime={clock.toISOString()}>{formatClock(clock, data.timeZone)}</time></div>
       </header>
 
       {data.dataStatus === "partial" ? <div className="system-notice" role="status">JOURNAL показывает безопасное пустое состояние. Проверьте Supabase и примените последнюю миграцию.</div> : null}
