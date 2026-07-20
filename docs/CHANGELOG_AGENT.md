@@ -47,3 +47,40 @@ CI-парности с Vercel (который наверняка использ�
 реальный Google OAuth PKCE-обмен кода на токен (нет тестового Google OAuth-приложения в
 этой сессии) — но это тот же путь, что уже покрыт `tests/google-pkce.test.ts` на уровне
 генерации transaction/state, сам факт типа строки на рантайм не влиял, только на билд.
+
+---
+
+[P0-AUTH-06] audit-cookie-flags-in-prod — сделано (код + тест), частично проверено.
+Реально проверено локально: поднят одноразовый docker-контейнер `pgvector/pgvector:pg16`
+(порт 5544, роли `anon`/`authenticated`/`service_role` созданы вручную по образцу
+Supabase), прогнаны все 16 миграций из `supabase/migrations/` на чистой БД без единой
+ошибки (расхождение с текстом промпта: там написано "17 миграций", реально файлов 16 —
+таблиц в схеме действительно 17, видимо опечатка/смешение). На этой БД эмпирически
+подтверждено: RLS включён на всех 17 таблицах, ни для одной нет ни одной policy —
+`anon`/`authenticated` получают `permission denied` на SELECT/INSERT на всех проверенных
+таблицах (`tasks`, `personal_settings`, `google_oauth_connections`, `raw_captures`,
+`memory_chunks`, `audit_log`), `service_role` (создан с `BYPASSRLS`, как в реальном
+Supabase) читает свободно — README-заявление "deny-all RLS для браузерных ролей"
+подтверждено фактически, а не на слово. Отдельно эмпирически проверена
+`register_login_attempt`: 8 фейлов с одного IP проходят, 9-й возвращает `false`
+(блокировка), с другого IP в это же время — проходит (подтверждает описанную в промпте
+уязвимость обхода по IP, см. `[P0-AUTH-04]`).
+
+Код: `src/lib/deployment/smoke.ts` — `cookieFrom()` ранее отбрасывал все атрибуты cookie
+(оставлял только `name=value`), поэтому `runAuthenticatedChecks` мог молча пропустить
+регресс (например, случайно пропавший `Secure`/`HttpOnly`). Добавлены
+`assertSessionCookieFlags` (HttpOnly, SameSite=Strict, Secure и `__Host-` префикс —
+последние два только когда деплой на https) и `assertSessionCookieCleared` (логаут
+реально обнуляет cookie через `Max-Age=0` либо прошедший `Expires`), обе подключены в
+`runAuthenticatedChecks` в `src/lib/deployment/smoke.ts`. Добавлены 2 теста в
+`tests/deployment-smoke.test.ts`: один подтверждает, что корректные флаги проходят,
+второй — что регрессия (cookie без флагов) реально ловится смоук-тестом (до фикса такой
+тест бы не сработал, так как `cookieFrom` не видел атрибутов вовсе). `npm run test`
+116/116 зелёный (было 114), `npm run typecheck`/`npm run lint` зелёные.
+
+Не проверено: реальные HTTP-заголовки на проде `hinkok-os-phi.vercel.app` — это требует
+знания настоящего `DASHBOARD_PASSWORD` пользователя, которого у агента нет и не должно
+быть (агент не должен вводить/запрашивать реальные пароли). Рекомендация пользователю:
+прогнать `npm run deploy:smoke -- https://hinkok-os-phi.vercel.app --authenticated` с
+`DASHBOARD_PASSWORD` в своём локальном окружении — теперь этот прогон реально проверит
+флаги cookie, а не только её наличие.

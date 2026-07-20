@@ -145,6 +145,63 @@ function cookieFrom(response: Response): string | null {
   return firstCookie?.includes("=") ? firstCookie : null;
 }
 
+function assertSessionCookieFlags(
+  checks: DeploymentSmokeCheck[],
+  response: Response,
+  baseUrl: string,
+): void {
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  const attributes = setCookie.split(";").map((part) => part.trim().toLowerCase());
+  const cookieName = setCookie.split("=", 1)[0]?.trim() ?? "";
+  const isHttps = baseUrl.startsWith("https:");
+
+  addCheck(
+    checks,
+    "session cookie HttpOnly",
+    attributes.includes("httponly"),
+    attributes.includes("httponly") ? "present" : "missing",
+  );
+  addCheck(
+    checks,
+    "session cookie SameSite=Strict",
+    attributes.includes("samesite=strict"),
+    attributes.find((attr) => attr.startsWith("samesite=")) ?? "missing",
+  );
+  addCheck(
+    checks,
+    "session cookie Secure",
+    !isHttps || attributes.includes("secure"),
+    isHttps ? (attributes.includes("secure") ? "present" : "missing") : "skipped (http deployment)",
+  );
+  addCheck(
+    checks,
+    "session cookie __Host- prefix",
+    !isHttps || cookieName.startsWith("__Host-"),
+    isHttps ? cookieName : "skipped (http deployment)",
+  );
+}
+
+function assertSessionCookieCleared(
+  checks: DeploymentSmokeCheck[],
+  response: Response,
+): void {
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  const attributes = setCookie.split(";").map((part) => part.trim().toLowerCase());
+  const maxAgeZero = attributes.includes("max-age=0");
+  const expiresPast = attributes.some((attr) => {
+    if (!attr.startsWith("expires=")) return false;
+    const value = Date.parse(attr.slice("expires=".length));
+    return Number.isFinite(value) && value <= Date.now();
+  });
+
+  addCheck(
+    checks,
+    "logout clears session cookie",
+    Boolean(setCookie) && (maxAgeZero || expiresPast),
+    setCookie ? "cleared" : "no Set-Cookie on logout",
+  );
+}
+
 async function runAuthenticatedChecks(
   baseUrl: string,
   password: string,
@@ -173,6 +230,7 @@ async function runAuthenticatedChecks(
     `HTTP ${login.response.status}${cookie ? ", secure cookie received" : ", cookie missing"}`,
   );
   if (login.response.status !== 200 || !cookie) return;
+  assertSessionCookieFlags(checks, login.response, baseUrl);
 
   const brain = await request(
     fetchImplementation,
@@ -208,6 +266,9 @@ async function runAuthenticatedChecks(
     logout.response.status === 204,
     `HTTP ${logout.response.status}`,
   );
+  if (logout.response.status === 204) {
+    assertSessionCookieCleared(checks, logout.response);
+  }
 }
 
 export async function runDeploymentSmoke(
