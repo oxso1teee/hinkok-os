@@ -62,6 +62,7 @@ const SECRET_VARIABLES = [
   "GOOGLE_TOKEN_ENCRYPTION_KEY",
   "GITHUB_TOKEN",
   "CRON_SECRET",
+  "RECOVERY_CODE",
 ] as const;
 
 const PLACEHOLDER_PATTERNS = [
@@ -201,6 +202,7 @@ function validateCore(
   validateSecret(environment, errors, "API_SECRET", 32);
   validateSecret(environment, errors, "OPENAI_API_KEY", 20);
   validateSecret(environment, errors, "CRON_SECRET", 32);
+  validateSecret(environment, errors, "RECOVERY_CODE", 32);
 
   const embeddingModel =
     clean(environment, "OPENAI_EMBEDDING_MODEL") ||

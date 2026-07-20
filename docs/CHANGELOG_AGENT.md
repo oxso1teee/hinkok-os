@@ -518,3 +518,59 @@ className="saved">Настройки сохранены.</p>` — провери
 `e2e-local` набор целиком (все 6 файлов, 23 теста) одним запуском — 23/23 зелёные, без
 кросс-файловой порчи состояния общей локальной БД (проверено вручную по журналу и
 повторными прогонами). `npm run typecheck`/`lint`/`test` (116/116) зелёные.
+
+---
+
+[P0-AUTH-01] add-password-recovery-flow — сделано, проверено end-to-end на реальном
+локальном стенде (не мок). Реализовано:
+- Новая миграция `supabase/migrations/202607200016_auth_password_recovery.sql` —
+  таблица `auth_password_override` (user_id PK, password_hash/salt/scrypt_cost,
+  recovered_at), deny-all RLS для anon/authenticated, только service_role.
+- `src/lib/auth/password-hash.ts` — scrypt-хэширование (N=16384, по образцу уже
+  существующего `src/lib/backups/crypto.ts`, но легче — это интерактивный логин-путь,
+  не офлайн-бэкап), константное время сравнения через `timingSafeEqual`. **Без**
+  `import "server-only"` — намеренно, чтобы модуль можно было юнит-тестировать напрямую
+  (как и `backups/crypto.ts`); 4 новых теста в `tests/password-hash.test.ts`.
+- `src/lib/env/recovery.ts` — новая переменная `RECOVERY_CODE`, **опциональная**
+  (по образцу `src/lib/env/cron.ts`), чтобы не сломать существующие деплойменты без
+  пересборки/добавления секрета.
+- `src/app/api/auth/recover/route.ts` — POST, same-origin проверка, rate-limit
+  3 попытки/час по IP (жёстче, чем логин-пароль — это "мастер-ключ"), constant-time
+  сравнение кода, генерирует новый случайный пароль (24 байта), хэширует и сохраняет
+  через `setPasswordOverride`, возвращает новый пароль **один раз** в ответе.
+- `src/app/api/auth/login/route.ts` — `checkPassword()` теперь сначала проверяет
+  `auth_password_override` (если есть — сравнение по хэшу побеждает), иначе как раньше
+  сравнивает с `DASHBOARD_PASSWORD` из env — 100% обратная совместимость для
+  деплойментов без `RECOVERY_CODE`.
+- `scripts/generate-secrets.mjs` — генерирует `RECOVERY_CODE` вместе с остальными
+  секретами, печатает предупреждение хранить его отдельно.
+- `src/lib/deployment/preflight.ts` — `RECOVERY_CODE` добавлен в `SECRET_VARIABLES`
+  (длина/placeholder-проверка, если задан) и в проверку "секреты не должны совпадать".
+
+**Реальный найденный и исправленный баг**: `src/proxy.ts` `PUBLIC_PATHS` не включал
+`/api/auth/recover` — auth-гейт возвращал 401 раньше, чем запрос доходил до самого роута
+восстановления (бессмысленно — recovery обязан работать БЕЗ активной сессии). Добавлено.
+
+**Полный сценарий "забыл пароль → восстановил доступ без правки .env/редеплоя" пройден
+вручную через curl на реальном dev-сервере + реальном локальном Postgres/PostgREST**:
+1. Логин старым паролем — 200 OK.
+2. `/api/auth/recover` с неверным кодом — 401 `invalid_code`.
+3. `/api/auth/recover` с верным `RECOVERY_CODE` — 200, получен новый пароль.
+4. Логин СТАРЫМ паролем — теперь 401 `invalid_credentials` (override реально победил).
+5. Логин НОВЫМ паролем — 200 OK, сессионная кука реально пускает на `/crm` (200).
+6. Повторные попытки recovery (4 подряд) — 4-я и далее получают 429 `rate_limited`,
+   подтверждает жёсткий лимит 3/час.
+После проверки override удалён из локальной БД (`delete from auth_password_override`),
+чтобы не сломать остальные e2e-local тесты, использующие исходный пароль — весь
+`e2e-local` набор (23 теста) и герметичный `npm run e2e` (12 тестов) перепрогнаны и
+зелёные после этого отката.
+
+По пути найдена и исправлена собственная ошибка (не приложения): захардкоженный
+service_role JWT в `e2e-local/health.spec.ts` — поймано `npm run repo:check`
+("possible JWT committed to the repository"), вынесено в `PLAYWRIGHT_LOCAL_SERVICE_JWT`.
+
+`npm run typecheck`/`lint`/`test` (120/120)/`build`/`repo:check`/`npm audit` — все
+зелёные.
+Не проверено: поведение на реальном проде Vercel (нет доступа к прод-`RECOVERY_CODE`/
+деплою), Telegram-алерт при использовании recovery (в промпте не требуется для этого
+пункта — см. отдельно `[P0-AUTH-04]`).

@@ -677,6 +677,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      auth_password_override: {
+        Row: {
+          user_id: string;
+          password_hash: string;
+          password_salt: string;
+          password_scrypt_cost: number;
+          recovered_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          password_hash: string;
+          password_salt: string;
+          password_scrypt_cost: number;
+          recovered_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          password_hash?: string;
+          password_salt?: string;
+          password_scrypt_cost?: number;
+          recovered_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {

@@ -143,6 +143,14 @@ PLAYWRIGHT_LOCAL_BASE_URL=http://localhost:3000 \
   npx playwright test --config=playwright.local.config.ts
 ```
 
+`e2e-local/health.spec.ts` also talks to PostgREST directly (to surgically
+clear/restore one day's activity without disturbing mood or journal text in
+the same row) and needs the locally-minted `service_role` JWT from step 5:
+`PLAYWRIGHT_LOCAL_SERVICE_JWT=<that JWT>` and, if not on the default port,
+`PLAYWRIGHT_LOCAL_REST_BASE=<your rest-proxy origin>`. Never hardcode that
+JWT in a spec file — `npm run repo:check` flags anything JWT-shaped as a
+possible committed secret, correctly, even for a disposable local one.
+
 Making these CI-portable is a real follow-up, not something to route around:
 either (a) extend `scripts/e2e-server.ts`'s mock with exact handlers for each
 module's query shapes (keeps the zero-extra-infra property but is

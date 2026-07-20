@@ -12,6 +12,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/api/auth/login",
   "/api/auth/logout",
+  "/api/auth/recover",
   "/api/telegram/webhook",
   "/api/webhook/telegram",
   "/api/memory/sync-obsidian",

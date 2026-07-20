@@ -14,12 +14,25 @@ import {
 } from "@/lib/auth/login-attempts";
 import { sanitizeNextPath } from "@/lib/auth/navigation";
 import { hasSameOrigin } from "@/lib/auth/origin";
+import { verifyPasswordHash } from "@/lib/auth/password-hash";
+import { getPasswordOverride } from "@/lib/auth/password-override";
 import {
   createSessionToken,
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { serverEnv } from "@/lib/env/server";
+
+/**
+ * A recovered password (see /api/auth/recover) always wins over
+ * DASHBOARD_PASSWORD once one has been set — that is the whole point of
+ * recovery: rotate access without editing env vars or redeploying.
+ */
+async function checkPassword(candidate: string): Promise<boolean> {
+  const override = await getPasswordOverride();
+  if (override) return verifyPasswordHash(candidate, override);
+  return constantTimeStringEqual(candidate, serverEnv.DASHBOARD_PASSWORD);
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,10 +117,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         : errorResponse(429, "rate_limited");
     }
 
-    const passwordMatches = constantTimeStringEqual(
-      body.data.password,
-      serverEnv.DASHBOARD_PASSWORD,
-    );
+    const passwordMatches = await checkPassword(body.data.password);
     const loginAllowed = await registerLoginAttempt(ip, passwordMatches);
 
     if (!loginAllowed) {

@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 const LOCAL_PASSWORD = process.env.PLAYWRIGHT_LOCAL_PASSWORD ?? "";
-const REST_BASE = "http://127.0.0.1:5556";
-const SERVICE_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UtbG9jYWwiLCJpYXQiOjE3ODQ1Njk5NzYsImV4cCI6MjA5OTkyOTk3Nn0.GwI_nQ9rT5mFPnu6ajyskem3cx7zgeJbW5UyC4IyO-w";
+const REST_BASE = process.env.PLAYWRIGHT_LOCAL_REST_BASE ?? "http://127.0.0.1:5556";
+// A locally-minted service_role JWT for the disposable PostgREST instance
+// described in docs/E2E_QA.md ("Local real-database specs") — never a real
+// credential, but still kept out of source to avoid looking like one.
+const SERVICE_JWT = process.env.PLAYWRIGHT_LOCAL_SERVICE_JWT ?? "";
 
 function restHeaders(extra?: Record<string, string>) {
   return {
@@ -53,6 +55,9 @@ test.beforeEach(async ({ page }) => {
   if (!LOCAL_PASSWORD) {
     throw new Error("Set PLAYWRIGHT_LOCAL_PASSWORD to the local DASHBOARD_PASSWORD before running e2e-local specs.");
   }
+  if (!SERVICE_JWT) {
+    throw new Error("Set PLAYWRIGHT_LOCAL_SERVICE_JWT to the local PostgREST service_role JWT before running this spec.");
+  }
   await page.goto("/login");
   await page.getByLabel("Пароль").fill(LOCAL_PASSWORD);
   await page.getByRole("button", { name: "Войти" }).click();
@@ -90,12 +95,19 @@ test("a day with no synced data renders a visible gap, not an interpolated line"
   const targetDate = target.toISOString().slice(0, 10);
   const backup = await readNotes(targetDate);
 
+  await page.goto("/health");
+  const emptyBars = page.locator(".health-sleep-bars .empty");
+  const beforeCount = await emptyBars.count();
+
   try {
     await clearActivity(targetDate);
 
     await page.goto("/health");
-    const emptyBars = page.locator(".health-sleep-bars .empty");
-    await expect(emptyBars).toHaveCount(1);
+    // Compared against the count just above rather than a hardcoded number:
+    // the local seed's 30-day trailing window shifts with the real clock, so
+    // "how many gaps exist right now" is not itself a fixed number across
+    // sessions — only "clearing one more day adds exactly one more gap" is.
+    await expect(emptyBars).toHaveCount(beforeCount + 1);
   } finally {
     await restoreNotes(targetDate, backup);
   }
