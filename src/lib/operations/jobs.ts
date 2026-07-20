@@ -1,6 +1,7 @@
 import "server-only";
 
 import { serverEnv } from "@/lib/env/server";
+import { alertOwnerOfJobOutcome } from "@/lib/operations/job-alert";
 import type {
   SystemJobName,
   SystemJobTrigger,
@@ -17,6 +18,35 @@ export type ObservedJobResult<T> =
   | { skipped: true; reason: "running_or_recent" }
   | { skipped: false; value: T };
 
+/**
+ * begin_system_job() sweeps and marks any stale (heartbeat older than
+ * STALE_AFTER_SECONDS) previous "running" row for this job as "abandoned" as
+ * a side effect of claiming a new run. That sweep is otherwise invisible
+ * outside the /operations dashboard, so alert on any abandonment it just did.
+ */
+async function alertOnJustAbandonedRuns(jobName: SystemJobName): Promise<void> {
+  try {
+    const { data } = await db()
+      .from("system_job_runs")
+      .select("id")
+      .eq("user_id", serverEnv.USER_ID)
+      .eq("job_name", jobName)
+      .eq("status", "abandoned")
+      .gte("finished_at", new Date(Date.now() - 30_000).toISOString())
+      .limit(1);
+
+    if (data && data.length > 0) {
+      await alertOwnerOfJobOutcome(
+        jobName,
+        "abandoned",
+        "Предыдущий запуск завис дольше 10 минут без heartbeat.",
+      );
+    }
+  } catch (error: unknown) {
+    console.error("Unable to check for abandoned job runs", error);
+  }
+}
+
 async function beginSystemJob(
   jobName: SystemJobName,
   trigger: SystemJobTrigger,
@@ -32,6 +62,8 @@ async function beginSystemJob(
   if (error) {
     throw new Error("Unable to claim the system job", { cause: error });
   }
+
+  await alertOnJustAbandonedRuns(jobName);
 
   return data;
 }
@@ -83,16 +115,18 @@ export async function withObservedJob<T>(options: {
     });
     return { skipped: false, value };
   } catch (error: unknown) {
+    const code = errorCode(error);
     try {
       await finishSystemJob({
         runId,
         status: "failed",
         summary: {},
-        errorCode: errorCode(error),
+        errorCode: code,
       });
     } catch (monitoringError: unknown) {
       console.error("System job failure could not be recorded", monitoringError);
     }
+    await alertOwnerOfJobOutcome(options.jobName, "failed", `Код ошибки: ${code}.`);
     throw error;
   }
 }
