@@ -130,3 +130,81 @@ test("rolls back an optimistic move when the server returns a 500", async ({ pag
   await expect(page.locator(".crm-column", { hasText: "THIS WEEK" }).locator(".crm-task-card", { hasText: "Настроить cron" })).toBeVisible();
   await expect(page.locator(".crm-toast")).toContainText("отменено");
 });
+
+test("resending the same create request with the same clientRequestId does not create a duplicate task", async ({ page }) => {
+  // [P0-CRM-02] verify-idempotency-key-collisions: simulates a network retry
+  // resending the exact same POST (same clientRequestId) after the first one
+  // may have already succeeded server-side.
+  const clientRequestId = await page.evaluate(() => crypto.randomUUID());
+  const title = `E2E idempotency check ${Date.now()}`;
+  const task = {
+    title,
+    description: null,
+    urgency: "someday",
+    category: "personal",
+    sphere: null,
+    key: false,
+    priorityScore: 10,
+    timeEstimateMin: null,
+    tags: [],
+    entityId: null,
+  };
+
+  const [first, second] = await page.evaluate(
+    async ({ clientRequestId, task }) => {
+      async function create() {
+        const response = await fetch("/api/crm/tasks", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", clientRequestId, task }),
+        });
+        return { status: response.status, body: await response.json() };
+      }
+      const a = await create();
+      const b = await create();
+      return [a, b];
+    },
+    { clientRequestId, task },
+  );
+
+  expect(first.body.ok).toBe(true);
+  expect(second.body.ok).toBe(true);
+  expect(second.body.taskId).toBe(first.body.taskId);
+
+  await page.reload();
+  await expect(page.locator(".crm-task-card", { hasText: title })).toHaveCount(1);
+});
+
+test("a card mid-move is disabled, so a second drag cannot race the first", async ({ page }) => {
+  // [P0-CRM-01] stress-test-optimistic-rollback: two back-to-back moves of
+  // the same card before the first server response returns. Real user
+  // double-drags are physically bounded by the control disabling itself
+  // (aria-disabled/disabled on the select, plus the busyIds guard inside
+  // moveTask() as defense in depth) — this test forces the race window open
+  // with a deliberate server delay and confirms the second interaction is
+  // rejected rather than racing the first.
+  let moveRequestCount = 0;
+  await page.route("**/api/crm/tasks", async (route) => {
+    const body = route.request().postDataJSON() as { action?: string };
+    if (body.action === "move") {
+      moveRequestCount += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+    }
+    await route.continue();
+  });
+
+  const card = page.locator(".crm-task-card", { hasText: "Медитация 10 минут" });
+  await expect(card).toBeVisible();
+  const move = card.getByLabel(/Переместить задачу/);
+
+  await move.selectOption("tomorrow");
+  await expect(move).toBeDisabled();
+
+  // The control is disabled while the first move is in flight: a second
+  // selectOption attempt must not silently succeed and race it.
+  await expect(move.selectOption("this_week", { timeout: 500 })).rejects.toThrow();
+  expect(moveRequestCount).toBe(1);
+
+  await expect(move).toBeEnabled({ timeout: 3_000 });
+});
