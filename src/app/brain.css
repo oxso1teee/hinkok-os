@@ -570,8 +570,8 @@
 
 .brain-task-line button {
   display: grid;
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 50%;

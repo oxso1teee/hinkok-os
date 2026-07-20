@@ -358,12 +358,12 @@
 .crm-card-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
 }
 
 .crm-card-actions button {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: 50%;
 }
@@ -374,8 +374,8 @@
 }
 
 .crm-card-actions select {
-  width: 23px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 50%;
