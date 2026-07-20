@@ -111,7 +111,7 @@ test("shows a stable error for a wrong password and clears the field", async ({
   await page.getByLabel("Пароль").fill("definitely-wrong-password");
   await page.getByRole("button", { name: "Войти" }).click();
 
-  await expect(page.getByRole("alert")).toHaveText("Неверный пароль.");
+  await expect(page.locator("#login-error")).toHaveText("Неверный пароль.");
   await expect(page.getByLabel("Пароль")).toHaveValue("");
   await expect(page).toHaveURL(/\/login$/);
   browserFailures.assertEmpty();

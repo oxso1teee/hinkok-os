@@ -331,3 +331,19 @@ env(safe-area-inset-top)`. На обычном (не-notched, не-standalone) �
 дескриптор (это в основном chromium-based фича), т.е. на iPhone эффект может
 отсутствовать даже после этого фикса — честно фиксирую это, а не выдаю за полное
 решение.
+
+---
+
+[FIX] fix-flaky-login-error-locator — сделано, проверено. При первом реальном прогоне
+`npm run e2e` (Playwright + Chromium, до этого не запускался в этой сессии) обнаружены
+2 падения (не связанные с моими правками — préexisting регресс): тест
+`e2e/authentication.spec.ts:103` использовал `page.getByRole("alert")`, но новая версия
+Next.js добавляет собственный служебный элемент `<div role="alert" aria-live="assertive"
+id="__next-route-announcer__">` (route announcer для скринридеров), из-за чего локатор
+стал неоднозначным ("strict mode violation: resolved to 2 elements") и тест падал на
+обоих проектах (desktop-chromium, mobile-chromium). Само поведение приложения корректно
+(ошибка "Неверный пароль." реально показывается) — сломан только локатор теста. Заменено
+на `page.locator("#login-error")` (стабильный id из `src/components/auth/login-form.tsx`).
+Проверено: `npm run e2e` — 12/12 зелёных (desktop-chromium + mobile-chromium, последний
+уже настроен в `playwright.config.ts` как Pixel 7 — частично покрывает
+`[P2-E2E-10] add-mobile-emulation-suite`, не нужно делать с нуля).
