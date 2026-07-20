@@ -972,6 +972,12 @@ export type Database = {
         };
         Returns: boolean;
       };
+      count_recent_login_failures: {
+        Args: {
+          p_window_seconds?: number;
+        };
+        Returns: number;
+      };
       begin_system_job: {
         Args: {
           p_user_id: string;

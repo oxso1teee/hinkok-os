@@ -4,14 +4,20 @@ import { z } from "zod";
 import { recordAuthAudit } from "@/lib/auth/audit";
 import { constantTimeStringEqual } from "@/lib/auth/constant-time";
 import {
+  LOGIN_BACKOFF_BASE_MS,
+  LOGIN_BACKOFF_MAX_MS,
+  LOGIN_GLOBAL_MAX_FAILURES,
   LOGIN_MAX_BODY_BYTES,
   LOGIN_WINDOW_MINUTES,
 } from "@/lib/auth/constants";
 import {
+  countRecentGlobalLoginFailures,
   enforceMinimumLoginTime,
   getClientIp,
   registerLoginAttempt,
+  sleep,
 } from "@/lib/auth/login-attempts";
+import { maybeAlertOwnerOfLoginFailures } from "@/lib/auth/login-alert";
 import { sanitizeNextPath } from "@/lib/auth/navigation";
 import { hasSameOrigin } from "@/lib/auth/origin";
 import { verifyPasswordHash } from "@/lib/auth/password-hash";
@@ -126,6 +132,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (!passwordMatches) {
+      // [P0-AUTH-04] Global (not just per-ip) lockout, exponential backoff and
+      // an owner alert — closes the ip-rotation bypass of the per-ip gate
+      // above, which only limits a single ip's failure count.
+      const globalFailures = await countRecentGlobalLoginFailures();
+      await maybeAlertOwnerOfLoginFailures(globalFailures, ip);
+
+      if (globalFailures >= LOGIN_GLOBAL_MAX_FAILURES) {
+        await enforceMinimumLoginTime(startedAtMs);
+        return errorResponse(429, "rate_limited");
+      }
+
+      const backoffMs = Math.min(
+        LOGIN_BACKOFF_BASE_MS * 2 ** Math.max(0, globalFailures - 1),
+        LOGIN_BACKOFF_MAX_MS,
+      );
+      await sleep(backoffMs);
       await enforceMinimumLoginTime(startedAtMs);
       return errorResponse(401, "invalid_credentials");
     }
