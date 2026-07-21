@@ -1,8 +1,19 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const TOTP_STEP_SECONDS = 30;
 const TOTP_DIGITS = 6;
+
+// Duplicated from src/lib/auth/constant-time.ts (not imported) so this file
+// can stay free of "server-only" and remain directly unit-testable under
+// plain `node --test`, matching this codebase's convention for pure auth
+// primitives (see password-hash.ts, backups/crypto.ts).
+function constantTimeStringEqual(left: string, right: string): boolean {
+  const leftDigest = createHash("sha256").update(left, "utf8").digest();
+  const rightDigest = createHash("sha256").update(right, "utf8").digest();
+
+  return timingSafeEqual(leftDigest, rightDigest);
+}
 
 export function generateTotpSecret(): string {
   return base32Encode(randomBytes(20));
@@ -97,7 +108,7 @@ export function verifyTotpCode(
   for (let delta = -windowSteps; delta <= windowSteps; delta += 1) {
     const step = currentStep + BigInt(delta);
     if (step < BigInt(0)) continue;
-    if (hotp(secret, step) === code) {
+    if (constantTimeStringEqual(hotp(secret, step), code)) {
       return { valid: true, step };
     }
   }
