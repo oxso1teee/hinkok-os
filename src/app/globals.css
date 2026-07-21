@@ -2,8 +2,8 @@
 
 :root {
   color-scheme: dark;
-  --background: #20100a;
-  --background-deep: #170b07;
+  --background: #4a2712;
+  --background-deep: #2a1508;
   --panel: rgb(45 18 10 / 76%);
   --panel-strong: rgb(56 22 11 / 92%);
   --panel-soft: rgb(76 30 14 / 40%);
@@ -11,7 +11,7 @@
   --border-strong: rgb(223 104 45 / 48%);
   --text: #f4e3d3;
   --text-soft: #d2a98b;
-  --muted: #a67d6a;
+  --muted: #b98d77;
   --muted-dark: #664535;
   --orange: #ef792f;
   --orange-bright: #ff9b50;
@@ -67,9 +67,10 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 52% -12%, rgb(230 100 40 / 62%), transparent 56%),
-    radial-gradient(circle at 92% 42%, rgb(150 55 20 / 30%), transparent 45%),
-    linear-gradient(180deg, #2a1509 0%, var(--background) 48%, #170b07 100%);
+    radial-gradient(circle at 50% 10%, rgb(240 140 60 / 60%), transparent 62%),
+    radial-gradient(circle at 8% 100%, rgb(10 5 3 / 65%), transparent 58%),
+    radial-gradient(circle at 100% 100%, rgb(10 5 3 / 55%), transparent 52%),
+    linear-gradient(165deg, #6b3a1a 0%, var(--background) 42%, #331a0c 100%);
   color: var(--text);
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
