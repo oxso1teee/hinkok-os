@@ -142,7 +142,7 @@ not otherwise expose per-request cold-start timing without dashboard access):
 |---|---|---|---|
 | `/` | 1.48s | 0.99s, 0.62s | ~0.9s |
 | `/api/telegram/webhook` (POST) | 1.99s | 0.84s, 0.84s | ~1.15s |
-| `/api/cron/sync-calendar` (imports `googleapis`) | 0.67s | 0.60s, 0.86s | no clear gap — this route now receives real Vercel Cron traffic every 15 minutes (see the `[P0-BACKUP-02]` proxy.ts `PUBLIC_PATHS` fix), so it rarely goes fully cold in production |
+| `/api/cron/sync-calendar` (imports `googleapis`) | 0.67s | 0.60s, 0.86s | no clear gap in this run — note the cron schedule was later changed from every 15 minutes to once daily (`30 3 * * *`) to fit the Vercel Hobby plan's cron limits (see `[P0-BACKUP-02]`/deployment notes), so this route now goes cold between runs like the other daily cron routes |
 | `/api/captures` (imports the OpenAI classifier chain) | 0.58s | 0.61s | no clear gap observed in this run |
 
 The clearest, most relevant number is the Telegram webhook: **~1.1–1.2s cold

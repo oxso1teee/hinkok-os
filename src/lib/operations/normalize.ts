@@ -54,8 +54,8 @@ export const SYSTEM_JOB_DEFINITIONS: readonly SystemJobDefinition[] = [
     name: "calendar_sync",
     label: "Google Calendar",
     description: "Инкрементальная синхронизация событий с локальной проекцией HOME.",
-    schedule: "каждые 15 минут · UTC",
-    expectedWithinMs: 60 * 60 * 1_000,
+    schedule: "ежедневно · 03:30 UTC",
+    expectedWithinMs: 36 * 60 * 60 * 1_000,
   },
   {
     name: "finance_sync",

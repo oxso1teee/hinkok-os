@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/sync-calendar",
-      "schedule": "*/15 * * * *"
+      "schedule": "30 3 * * *"
     },
     {
       "path": "/api/finance/sync-google-sheets",
