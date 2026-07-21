@@ -19,6 +19,8 @@ const PUBLIC_PATHS = new Set([
   "/api/memory/sync-obsidian",
   "/api/finance/sync-google-sheets",
   "/api/insights/weekly",
+  "/api/cron/sync-calendar",
+  "/api/cron/backup",
 ]);
 
 function applyContentSecurityPolicy(

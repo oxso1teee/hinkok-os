@@ -20,6 +20,7 @@ const jobEndpoints: Record<SystemJobName, string> = {
   calendar_sync: "/api/cron/sync-calendar",
   finance_sync: "/api/finance/sync-google-sheets",
   weekly_insight: "/api/insights/weekly",
+  backup_scheduled: "/api/cron/backup",
 };
 
 const healthLabels: Record<SystemJobHealth, string> = {

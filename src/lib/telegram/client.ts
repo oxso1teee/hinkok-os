@@ -5,6 +5,7 @@ import { z } from "zod";
 import { telegramEnv } from "@/lib/env/telegram";
 
 const MAX_TELEGRAM_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_TELEGRAM_UPLOAD_BYTES = 45 * 1024 * 1024;
 const telegramResponseSchema = z.object({
   ok: z.boolean(),
   result: z.unknown().optional(),
@@ -55,7 +56,7 @@ function botToken(): string {
 
 async function telegramRequest<T>(
   method: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown> | FormData,
   resultSchema: z.ZodType<T>,
 ): Promise<T> {
   let response: Response;
@@ -63,13 +64,20 @@ async function telegramRequest<T>(
   try {
     response = await fetch(
       `https://api.telegram.org/bot${botToken()}/${method}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20_000),
-        cache: "no-store",
-      },
+      payload instanceof FormData
+        ? {
+            method: "POST",
+            body: payload,
+            signal: AbortSignal.timeout(60_000),
+            cache: "no-store",
+          }
+        : {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(20_000),
+            cache: "no-store",
+          },
     );
   } catch {
     throw new Error(`Telegram ${method} request failed`);
@@ -111,6 +119,31 @@ export async function sendTelegramMessage(
       link_preview_options: { is_disabled: true },
       ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     },
+    z.object({ message_id: z.number().int() }).passthrough(),
+  );
+}
+
+export async function sendTelegramDocument(
+  chatId: number,
+  file: { bytes: Uint8Array; fileName: string; mimeType: string },
+  caption?: string,
+): Promise<void> {
+  if (file.bytes.byteLength > MAX_TELEGRAM_UPLOAD_BYTES) {
+    throw new Error("Telegram upload exceeds the size limit");
+  }
+
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  if (caption) form.append("caption", caption.slice(0, 1024));
+  form.append(
+    "document",
+    new Blob([new Uint8Array(file.bytes)], { type: file.mimeType }),
+    file.fileName,
+  );
+
+  await telegramRequest(
+    "sendDocument",
+    form,
     z.object({ message_id: z.number().int() }).passthrough(),
   );
 }

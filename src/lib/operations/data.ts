@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isScheduledBackupConfigured } from "@/lib/env/backup";
 import { cronEnv } from "@/lib/env/cron";
 import { isGoogleCalendarConfigured, isGoogleSheetsFinanceConfigured } from "@/lib/env/google";
 import { isObsidianConfigured } from "@/lib/env/obsidian";
@@ -42,6 +43,7 @@ function configuration(): Record<SystemJobName, boolean> {
     calendar_sync: cronConfigured && isGoogleCalendarConfigured(),
     finance_sync: cronConfigured && isGoogleSheetsFinanceConfigured(),
     weekly_insight: cronConfigured,
+    backup_scheduled: cronConfigured && isScheduledBackupConfigured(),
   };
 }
 

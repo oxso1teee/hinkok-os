@@ -911,3 +911,96 @@ UPDATE (append-only дизайн, есть также триггер `prevent_au
 Не проверено: восстановление на РЕАЛЬНОМ Supabase (Kong-гейтвей, а не локальный
 самодельный proxy) — код-путь идентичен, но реальный прод-запуск restore не выполнялся
 в этой сессии, только на локальном стенде, воспроизводящем те же роли/гранты.
+
+---
+
+[P0-BACKUP-02] add-scheduled-automatic-backups — сделано и проверено сквозным сценарием
+на реальном локальном стеке (Postgres+PostgREST+dev-сервер), не только чтением кода.
+
+**Решение по месту хранения файла** (промт явно просил продумать это, т.к. Vercel
+functions не имеют персистентной файловой системы): вместо S3/R2/Google Drive —
+зашифрованный `.hinkok-backup`-файл отправляется как документ через уже существующий,
+полностью проверенный Telegram-бот прямо в чат пользователя. Обоснование: не требует
+новых учётных данных/бакетов/оплаты, переиспользует канал, который уже используется для
+всех остальных алертов в этой сессии (`[P0-OPS-01]`, `[P0-AUTH-04]`), и даёт
+пользователю мгновенный доступ с телефона. Показал это решение пользователю отдельно —
+подтверждено.
+
+**Добавлено**:
+- `src/lib/env/backup.ts` — опциональная `SCHEDULED_BACKUP_PASSPHRASE` (16-1024 симв.,
+  тот же формат, что `validateBackupPassphrase` в `crypto.ts`). Фича выключена, если не
+  задана — `isScheduledBackupConfigured()`.
+- `src/lib/telegram/client.ts` — `telegramRequest` обобщена, чтобы принимать `FormData`
+  (не только JSON), добавлена `sendTelegramDocument` (реальный multipart-запрос к
+  Telegram `sendDocument`, лимит загрузки 45 МБ с явной проверкой перед отправкой).
+- `src/app/api/cron/backup/route.ts` (новый) — `GET` (требует `Bearer CRON_SECRET`,
+  как и остальные cron-роуты) и `POST` (ручной запуск из UI — сессия/api-secret +
+  same-origin + лимит 1/час). Собирает снапшот (`collectBackupSnapshot`), шифрует
+  (`encryptBackupSnapshot`), отправляет как Telegram-документ (при превышении 45 МБ —
+  вместо файла шлёт текстовое предупреждение "выполните backup:create локально"),
+  пишет `audit_log` событие `backup.scheduled_exported`. Обёрнуто в уже существующий
+  `withObservedJob` — значит автоматически получает мониторинг на `/operations`,
+  анти-дублирование повторных запусков (min-interval 300с) и Telegram-алерт при
+  падении (`[P0-OPS-01]`), без единой новой строчки специального кода для этого.
+- `src/lib/operations/normalize.ts` — новый `SystemJobName` `backup_scheduled` +
+  запись в `SYSTEM_JOB_DEFINITIONS` (еженедельно, воскресенье 04:00 UTC — на 5 часов
+  раньше `weekly_insight`, чтобы не совпадать).
+- `supabase/migrations/202607210020_backup_scheduled_job.sql` — расширен CHECK-констрейнт
+  `system_job_runs_job_name_check` и функция `begin_system_job` (добавлено значение
+  `backup_scheduled` в разрешённый список), по образцу `202607190015`. Применено к
+  локальному Postgres, PostgREST-кеш схемы перезагружен.
+- `vercel.json` — новый cron `{"path": "/api/cron/backup", "schedule": "0 4 * * 0"}`.
+- `.env.example`, `scripts/generate-secrets.mjs`, `src/lib/deployment/preflight.ts` —
+  `SCHEDULED_BACKUP_PASSPHRASE` добавлена везде, где по аналогии уже есть
+  `RECOVERY_CODE`/`CRON_SECRET` (генерация, secret-валидация, документация). Отдельно
+  добавлено предупреждение в preflight: если passphrase задан, а Telegram — нет, бэкапу
+  некуда доставлять файл.
+- `src/components/operations/operations-dashboard.tsx`, `src/lib/operations/data.ts` —
+  добавлена запись `backup_scheduled` в карты `jobEndpoints`/`configuration()` (нужно
+  было для типов `Record<SystemJobName, ...>` и чтобы кнопка "запустить вручную" на
+  `/operations` реально работала для нового job).
+
+**Реальный найденный и исправленный баг, обнаруженный ПОПУТНО во время проверки нового
+роута**: `src/proxy.ts` `PUBLIC_PATHS` никогда не включал `/api/cron/sync-calendar` —
+хотя `/api/memory/sync-obsidian`, `/api/finance/sync-google-sheets`, `/api/insights/weekly`
+там есть. Реально воспроизведено: curl с `Authorization: Bearer $CRON_SECRET` (именно
+так Vercel Cron вызывает эндпоинты — без cookie-сессии) возвращал 401 `unauthorized` ещё
+на уровне middleware, с `Content-Security-Policy`-заголовком в ответе (доказательство,
+что это `proxy.ts`, а не сам роут, вернул 401 — сам роут вообще не был достигнут).
+Значит **автоматический запуск `/api/cron/sync-calendar` в проде никогда не срабатывал**
+(каждые 15 минут по `vercel.json`) — ручная кнопка в UI работала (там есть сессионная
+кука, которая проходит через `authenticateRequest` и в middleware, и в самом роуте), из-за
+чего баг был невидим. Добавлены `/api/cron/sync-calendar` и `/api/cron/backup` в
+`PUBLIC_PATHS` — после исправления curl с тем же Bearer-токеном доходит до самого роута
+(подтверждено сменой ответа 401→503 `not_configured`, т.к. Google Calendar не настроен
+локально — то есть код реально исполнился, просто рано вышел по другой причине).
+
+**Как проверено (сквозной сценарий на реальном dev-сервере + Postgres, не только
+чтением кода)**:
+1. Применена миграция `202607210020` к локальному Postgres, PostgREST перезапущен.
+2. `GET /api/cron/backup` с `Bearer CRON_SECRET`, без `SCHEDULED_BACKUP_PASSPHRASE` в
+   окружении → `503 not_configured` (подтверждено явным рестартом сервера без секрета).
+3. Тот же запрос с настроенным `SCHEDULED_BACKUP_PASSPHRASE` → `200 {"ok":true,
+   "totalRows":228,"encryptedBytes":153232}`. Проверено строкой в `system_job_runs`
+   (`job_name: backup_scheduled, status: succeeded, summary: {totalRows, encryptedBytes}`)
+   и строкой в `audit_log` (`action: backup.scheduled_exported`) — обе реально
+   записаны, не выдумано.
+4. Повторный вызов сразу же → `{"ok":true,"skipped":"running_or_recent"}` (min-interval
+   300с из `withObservedJob`/`begin_system_job` защищает от повторного срабатывания).
+5. Без заголовка / с неверным `Bearer` → `401 unauthorized` в обоих случаях.
+6. Ручной `POST` с валидной сессией (реальный логин через `/api/auth/login` +
+   `Origin`-заголовок) → `200 OK`, второй `POST` сразу же → `429 rate_limited` с
+   `Retry-After: 3600`. `POST` без сессии → `401`; `POST` с сессией, но чужим
+   `Origin: http://evil.example` → `403 invalid_origin`.
+7. Telegram НЕ настроен локально (нет реального бота) → `deliverBackup` корректно
+   пропускает отправку документа (проверено логами/отсутствием ошибок) и всё равно
+   пишет audit-событие — деградация без падения задачи, как и остальные
+   Telegram-интеграции в проекте.
+`npm run typecheck`/`lint`/`test` (127/127)/`build`/`repo:check` зелёные. `e2e-local`
+(25/25, один тест поймал разовый холодный старт Turbopack при первом обращении к
+только что перезапущенному dev-серверу — перепрогнан отдельно, зелёный, не регрессия) и
+герметичный `npm run e2e` (12/12) зелёные после изменений.
+Не проверено: реальная доставка файла через Telegram `sendDocument` (нет настоящего
+бота в этой сессии) — HTTP-путь идентичен уже проверенному `sendTelegramMessage`,
+отличается только `Content-Type`/телом запроса (multipart вместо JSON); реальный запуск
+по расписанию на проде (нужно ждать реального воскресенья 04:00 UTC после деплоя).

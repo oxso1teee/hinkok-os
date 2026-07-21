@@ -63,6 +63,7 @@ const SECRET_VARIABLES = [
   "GITHUB_TOKEN",
   "CRON_SECRET",
   "RECOVERY_CODE",
+  "SCHEDULED_BACKUP_PASSPHRASE",
 ] as const;
 
 const PLACEHOLDER_PATTERNS = [
@@ -203,6 +204,7 @@ function validateCore(
   validateSecret(environment, errors, "OPENAI_API_KEY", 20);
   validateSecret(environment, errors, "CRON_SECRET", 32);
   validateSecret(environment, errors, "RECOVERY_CODE", 32);
+  validateSecret(environment, errors, "SCHEDULED_BACKUP_PASSPHRASE", 16);
 
   const embeddingModel =
     clean(environment, "OPENAI_EMBEDDING_MODEL") ||
@@ -285,6 +287,18 @@ function validateGroups(
       code: "invalid_telegram_user",
       variable: "TELEGRAM_USER_ID",
       message: "TELEGRAM_USER_ID must contain digits only.",
+    });
+  }
+
+  if (
+    clean(environment, "SCHEDULED_BACKUP_PASSPHRASE") &&
+    !isConfigured(environment, OPTIONAL_GROUPS.telegram)
+  ) {
+    warnings.push({
+      code: "scheduled_backup_without_delivery",
+      variable: "SCHEDULED_BACKUP_PASSPHRASE",
+      message:
+        "SCHEDULED_BACKUP_PASSPHRASE is set but Telegram is not configured, so the weekly cron backup has nowhere to deliver the file.",
     });
   }
 

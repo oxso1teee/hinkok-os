@@ -3,6 +3,7 @@ export const SYSTEM_JOB_NAMES = [
   "calendar_sync",
   "finance_sync",
   "weekly_insight",
+  "backup_scheduled",
 ] as const;
 
 export type SystemJobName = (typeof SYSTEM_JOB_NAMES)[number];
@@ -68,6 +69,13 @@ export const SYSTEM_JOB_DEFINITIONS: readonly SystemJobDefinition[] = [
     label: "Weekly insight",
     description: "Недельный обзор записанных фактов и индексация результата.",
     schedule: "воскресенье · 09:00 UTC",
+    expectedWithinMs: 8 * 24 * 60 * 60 * 1_000,
+  },
+  {
+    name: "backup_scheduled",
+    label: "Scheduled backup",
+    description: "Еженедельный зашифрованный экспорт всех данных с доставкой в Telegram.",
+    schedule: "воскресенье · 04:00 UTC",
     expectedWithinMs: 8 * 24 * 60 * 60 * 1_000,
   },
 ];
@@ -153,6 +161,7 @@ export function latestRunsByJob(
     calendar_sync: null,
     finance_sync: null,
     weekly_insight: null,
+    backup_scheduled: null,
   };
 
   for (const run of runs) {
