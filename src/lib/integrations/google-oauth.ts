@@ -68,6 +68,16 @@ export async function exchangeGoogleAuthorizationCode(code: string, codeVerifier
   if (error) throw new Error("Unable to save Google OAuth connection", { cause: error });
 }
 
+export function isInvalidGrantError(error: unknown): boolean {
+  const candidate = error as { response?: { data?: { error?: unknown } }; message?: unknown } | null;
+  if (candidate?.response?.data?.error === "invalid_grant") return true;
+  return typeof candidate?.message === "string" && candidate.message.includes("invalid_grant");
+}
+
+async function clearRevokedGoogleConnection(): Promise<void> {
+  await db().from("google_oauth_connections").delete().eq("user_id", serverEnv.USER_ID).eq("provider", "google");
+}
+
 export async function getGoogleOAuthClient() {
   const { data, error } = await db().from("google_oauth_connections").select("encrypted_access_token,encrypted_refresh_token,token_expiry,scopes,connected_email,calendar_sync_token").eq("user_id", serverEnv.USER_ID).eq("provider", "google").maybeSingle();
   if (error || !data) throw new Error("Google OAuth connection is unavailable", { cause: error });
@@ -85,7 +95,15 @@ export async function getGoogleOAuthClient() {
     if (tokens.expiry_date) update.token_expiry = new Date(tokens.expiry_date).toISOString();
     if (Object.keys(update).length) await db().from("google_oauth_connections").update(update).eq("user_id", serverEnv.USER_ID).eq("provider", "google");
   });
-  await client.getAccessToken();
+  try {
+    await client.getAccessToken();
+  } catch (tokenError: unknown) {
+    if (isInvalidGrantError(tokenError)) {
+      await clearRevokedGoogleConnection();
+      throw new Error("Google OAuth connection was revoked; reconnect required", { cause: tokenError });
+    }
+    throw tokenError;
+  }
   return { client, connection };
 }
 

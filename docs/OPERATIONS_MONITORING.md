@@ -78,3 +78,54 @@ If a new application deployment is unhealthy:
 
 Database migrations remain append-only. Any future incompatible schema change
 must use a forward-fix migration instead of destructive rollback SQL.
+
+## Obsidian sync performance model (`[P0-OBS-01]`)
+
+`syncObsidianMemory()` (`src/lib/obsidian/sync.ts`) is a real incremental sync
+by git blob SHA, not an approximation: it compares every note's current blob
+SHA against the SHA stored from the previous run and only downloads and
+re-embeds notes whose SHA changed. The expected cost below is derived from
+reading that code path and the GitHub/OpenAI API shapes it calls — **it is not
+a measured production run**. This session has neither a real `GITHUB_TOKEN`
+against a populated Obsidian repository nor a working `OPENAI_API_KEY` (the
+local dev environment uses placeholder values throughout, as already noted for
+every other AI-dependent feature in `docs/CHANGELOG_AGENT.md`), so a live
+500+-note timing run could not be produced here. Re-running this measurement
+with real credentials against a real vault is a concrete follow-up.
+
+**API call shape** (confirmed by reading `src/lib/obsidian/sync.ts` and
+`src/lib/obsidian/github.ts`):
+
+| Step | Calls, full sync (500 notes, all changed) | Calls, incremental sync (5 notes changed) |
+|---|---|---|
+| GitHub tree fetch | 1 (`GET .../git/trees/{branch}?recursive=1`, whole repo in one response) | 1 (same call — SHA comparison happens locally after this) |
+| GitHub blob fetch | 500, concurrency 4 (`INDEX_CONCURRENCY`) | 5, concurrency 4 |
+| OpenAI embeddings | 500, one call per note (chunks within a note batch into a single `createEmbeddings` call; concurrency 4) | 5 |
+| Supabase reads/writes | 1 read + 1 upsert per changed note for `memory_chunks`, plus 1 `kv_cache` read/write for sync state | same, scaled to 5 |
+
+**Expected wall-clock time** (reasoned from typical GitHub REST and OpenAI
+embeddings API latency, not measured): with `INDEX_CONCURRENCY = 4` and each
+changed-note round trip (GitHub blob fetch + OpenAI embed + Supabase write)
+landing somewhere in the 300–800ms range serially, a full sync of 500 changed
+notes is expected to take roughly `500 / 4 * ~0.5s ≈ 60s`, plus the single
+upfront tree fetch (typically under 1s for a repo this size). An incremental
+sync touching a handful of notes after a normal editing session is expected to
+complete in a few seconds, dominated by the same fixed 1-tree-fetch cost. The
+GitHub Trees API response for a repository with 500 markdown files is well
+under both of GitHub's truncation limits (100,000 entries, 7MB response), so
+no pagination or truncation handling is needed at this scale.
+
+**Cost**: a full 500-note resync consumes 500 OpenAI embedding calls (each
+note's text run through `text-embedding-3-small` — priced per token, not per
+call, so cost scales with total vault word count rather than note count) and
+500 GitHub REST API calls, well inside GitHub's authenticated per-hour rate
+limit (5,000 requests/hour for a personal access token). An incremental sync
+after normal day-to-day editing (single-digit note count) costs a small
+fraction of this and is not a meaningful driver of either API bill.
+
+If a future session has access to the real `OBSIDIAN_REPO`, `GITHUB_TOKEN` and
+a working `OPENAI_API_KEY`, replace this section's estimates with an actual
+measured `changedCount`, `embeddedCount`, and wall-clock duration from a real
+full sync followed by a real incremental sync (`ObsidianSyncResult` already
+returns all of these fields — no new instrumentation is needed, only a real
+run against a populated vault).

@@ -269,87 +269,97 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
   }
 
   const idempotencyKey = `tg:${message.chat.id}:${message.message_id}`;
-  const existing = await findCaptureByIdempotencyKey(idempotencyKey);
 
-  if (existing) {
-    if (existing.replySent) {
+  try {
+    const existing = await findCaptureByIdempotencyKey(idempotencyKey);
+
+    if (existing) {
+      if (existing.replySent) {
+        return;
+      }
+
+      const replayResult: ProcessCaptureResult = {
+        ...existing,
+        memoryIndexed: existing.processingStatus === "processed",
+        externalSynced: existing.routedTo === "google_calendar",
+      };
+      const replayKeyboard =
+        replayResult.classification.kind === "task" && replayResult.routedId
+          ? taskUrgencyKeyboard(replayResult.routedId)
+          : undefined;
+
+      await sendTelegramMessage(
+        message.chat.id,
+        captureReplyText(replayResult),
+        replayKeyboard,
+      );
+      await markCaptureReplySent(replayResult.captureId);
       return;
     }
 
-    const replayResult: ProcessCaptureResult = {
-      ...existing,
-      memoryIndexed: existing.processingStatus === "processed",
-      externalSynced: existing.routedTo === "google_calendar",
-    };
-    const replayKeyboard =
-      replayResult.classification.kind === "task" && replayResult.routedId
-        ? taskUrgencyKeyboard(replayResult.routedId)
+    let input: Awaited<ReturnType<typeof messageCaptureInput>>;
+
+    try {
+      input = await messageCaptureInput(message);
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message === "Unsupported Telegram message type"
+      ) {
+        await sendTelegramMessage(
+          message.chat.id,
+          "Отправьте текст, голосовое сообщение или фотографию.",
+        );
+        return;
+      }
+
+      if (
+        error instanceof Error &&
+        error.message === "Voice transcription unavailable"
+      ) {
+        await sendTelegramMessage(
+          message.chat.id,
+          "Не удалось надёжно распознать голосовое сообщение. Отправьте его ещё раз или напишите текстом.",
+        );
+        return;
+      }
+
+      throw error;
+    }
+
+    const result = await processCapture({
+      text: input.text,
+      source: "telegram",
+      idempotencyKey,
+      forcedKind,
+      capturedAt: new Date(message.date * 1000),
+      media: input.media,
+      nutrition: input.nutrition,
+    });
+
+    if (!result.created) {
+      return;
+    }
+
+    const keyboard =
+      result.classification.kind === "task" && result.routedId
+        ? taskUrgencyKeyboard(result.routedId)
         : undefined;
 
     await sendTelegramMessage(
       message.chat.id,
-      captureReplyText(replayResult),
-      replayKeyboard,
+      captureReplyText(result, input.nutrition),
+      keyboard,
     );
-    await markCaptureReplySent(replayResult.captureId);
-    return;
-  }
-
-  let input: Awaited<ReturnType<typeof messageCaptureInput>>;
-
-  try {
-    input = await messageCaptureInput(message);
+    await markCaptureReplySent(result.captureId);
   } catch (error: unknown) {
-    if (
-      error instanceof Error &&
-      error.message === "Unsupported Telegram message type"
-    ) {
-      await sendTelegramMessage(
-        message.chat.id,
-        "Отправьте текст, голосовое сообщение или фотографию.",
-      );
-      return;
-    }
-
-    if (
-      error instanceof Error &&
-      error.message === "Voice transcription unavailable"
-    ) {
-      await sendTelegramMessage(
-        message.chat.id,
-        "Не удалось надёжно распознать голосовое сообщение. Отправьте его ещё раз или напишите текстом.",
-      );
-      return;
-    }
-
+    console.error("Telegram capture handling failed", error);
+    await sendTelegramMessage(
+      message.chat.id,
+      "Не смог сохранить сообщение. Попробуйте отправить его ещё раз через минуту.",
+    );
     throw error;
   }
-
-  const result = await processCapture({
-    text: input.text,
-    source: "telegram",
-    idempotencyKey,
-    forcedKind,
-    capturedAt: new Date(message.date * 1000),
-    media: input.media,
-    nutrition: input.nutrition,
-  });
-
-  if (!result.created) {
-    return;
-  }
-
-  const keyboard =
-    result.classification.kind === "task" && result.routedId
-      ? taskUrgencyKeyboard(result.routedId)
-      : undefined;
-
-  await sendTelegramMessage(
-    message.chat.id,
-    captureReplyText(result, input.nutrition),
-    keyboard,
-  );
-  await markCaptureReplySent(result.captureId);
 }
 
 export async function handleTelegramUpdate(
