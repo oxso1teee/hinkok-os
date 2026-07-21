@@ -16,6 +16,7 @@ import {
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -165,6 +166,14 @@ function TaskEditor({
   const [draft, setDraft] = useState<TaskDraft>(() =>
     task ? draftFromTask(task) : EMPTY_DRAFT,
   );
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -392,6 +401,72 @@ function TaskCard({
   );
 }
 
+const CRM_KEYBOARD_VERTICAL_STEP = 25;
+
+/**
+ * dnd-kit's default keyboard coordinate getter only nudges the dragged item
+ * by a fixed pixel offset per arrow press, which never crosses a column
+ * boundary (columns are hundreds of pixels wide) — so Left/Right jump
+ * straight to the next/previous column's center instead, letting keyboard
+ * users actually move a card between urgency columns, not just wiggle it in
+ * place. Up/Down keep the default small nudge (no in-column keyboard
+ * reordering exists yet — cards aren't a dnd-kit sortable list).
+ */
+const crmColumnKeyboardCoordinateGetter: KeyboardCoordinateGetter = (
+  event,
+  { currentCoordinates, context },
+) => {
+  const { code } = event;
+
+  if (code === "ArrowUp" || code === "ArrowDown") {
+    event.preventDefault();
+    return {
+      ...currentCoordinates,
+      y:
+        currentCoordinates.y +
+        (code === "ArrowDown" ? CRM_KEYBOARD_VERTICAL_STEP : -CRM_KEYBOARD_VERTICAL_STEP),
+    };
+  }
+
+  if (code !== "ArrowLeft" && code !== "ArrowRight") {
+    return undefined;
+  }
+
+  const { collisionRect, droppableRects } = context;
+  if (!collisionRect) return undefined;
+
+  const columnRects = CRM_COLUMNS.map((column) => ({
+    id: column.id,
+    rect: droppableRects.get(`column:${column.id}`),
+  })).filter(
+    (entry): entry is { id: CrmUrgency; rect: NonNullable<(typeof entry)["rect"]> } =>
+      Boolean(entry.rect),
+  );
+  if (columnRects.length === 0) return undefined;
+
+  const activeCenterX = collisionRect.left + collisionRect.width / 2;
+  let currentIndex = 0;
+  let smallestDistance = Number.POSITIVE_INFINITY;
+  columnRects.forEach((entry, index) => {
+    const center = entry.rect.left + entry.rect.width / 2;
+    const distance = Math.abs(center - activeCenterX);
+    if (distance < smallestDistance) {
+      smallestDistance = distance;
+      currentIndex = index;
+    }
+  });
+
+  const targetIndex = code === "ArrowRight" ? currentIndex + 1 : currentIndex - 1;
+  const target = columnRects[targetIndex];
+  if (!target) return undefined;
+
+  event.preventDefault();
+  return {
+    x: target.rect.left + target.rect.width / 2,
+    y: collisionRect.top + collisionRect.height / 2,
+  };
+};
+
 function DroppableColumn({
   columnId,
   active,
@@ -429,7 +504,7 @@ export function CrmDashboard({ data }: { data: CrmDashboardData }) {
     // to scroll the task list is not immediately hijacked as a drag on touch
     // devices; the touch has to be held briefly before a drag commits.
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: crmColumnKeyboardCoordinateGetter }),
   );
 
   useEffect(() => {
