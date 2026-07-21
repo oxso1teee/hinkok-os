@@ -129,3 +129,86 @@ measured `changedCount`, `embeddedCount`, and wall-clock duration from a real
 full sync followed by a real incremental sync (`ObsidianSyncResult` already
 returns all of these fields — no new instrumentation is needed, only a real
 run against a populated vault).
+
+## Cold start (`[P0-PERF-01]`)
+
+Measured against the real production deployment
+(`https://hinkok-os-phi.vercel.app`), comparing the first request after a
+period of idleness against immediate follow-up requests to the same route
+(a standard proxy for cold vs. warm serverless invocation, since Vercel does
+not otherwise expose per-request cold-start timing without dashboard access):
+
+| Route | First hit | Warm hits | Delta |
+|---|---|---|---|
+| `/` | 1.48s | 0.99s, 0.62s | ~0.9s |
+| `/api/telegram/webhook` (POST) | 1.99s | 0.84s, 0.84s | ~1.15s |
+| `/api/cron/sync-calendar` (imports `googleapis`) | 0.67s | 0.60s, 0.86s | no clear gap — this route now receives real Vercel Cron traffic every 15 minutes (see the `[P0-BACKUP-02]` proxy.ts `PUBLIC_PATHS` fix), so it rarely goes fully cold in production |
+| `/api/captures` (imports the OpenAI classifier chain) | 0.58s | 0.61s | no clear gap observed in this run |
+
+The clearest, most relevant number is the Telegram webhook: **~1.1–1.2s cold
+start**, directly relevant to `[P0-TG-01]`'s concern that Telegram retries
+after a timeout, compounding load on a route that was already found to be
+under-warmed. Local disk sizes for the three heaviest dependencies confirm
+`googleapis` as the largest contributor by far: `googleapis` 204MB,
+`openai` 20MB, `@supabase/supabase-js` 8.8MB (`du -sh node_modules/...`) —
+consistent with the doc's own flag that `googleapis` is known to be heavy.
+Turbopack's per-route compiled server bundles are small (a few KB each; the
+actual dependency weight lives in shared chunks, `.next/server/chunks/`,
+totaling ~99MB across the whole app after tree-shaking), so there is no
+single oversized per-route bundle to trim — the cold-start cost is inherent
+to initializing the `googleapis`/`openai`/`@supabase/supabase-js` clients
+themselves, not avoidable bundle bloat.
+
+No code change was made for this item: `runtime = "nodejs"` is already set on
+every route (required — these SDKs are not Edge-runtime compatible), and a
+~1s cold start on a personal single-user app with low request volume is not
+worth the complexity of manual bundle-splitting or a keep-warm cron ping.
+Documented here as the real measured number the checklist asks for, not
+optimized further.
+
+## Database indexes (`[P0-PERF-02]`)
+
+Reviewed all 21 migrations against the query shapes the application code
+actually issues (not just the shapes a migration's author assumed at the
+time). Every hot path the doc calls out — `user_id + created_at`,
+`user_id + sphere_id`, pgvector similarity — already has a matching index;
+confirmed with `EXPLAIN` against a synthetic 8,000-row `tasks` table and a
+synthetic 3,000-row `memory_chunks` table with real random 1536-dim vectors
+(both later deleted), not just by reading `CREATE INDEX` statements.
+
+Two real gaps were found and fixed
+(`supabase/migrations/202607210021_task_query_indexes.sql`):
+
+- The CRM board's actual read query (`src/lib/crm/data.ts`) fetches all
+  active tasks for a user ordered by `(board_position, created_at)`, with no
+  `urgency` filter. Both pre-existing task indexes
+  (`tasks_user_board_idx`, `tasks_user_id_active_idx`) have `urgency` as
+  their second column, which this query never filters on — confirmed via
+  `EXPLAIN` that neither could serve it: a plain Seq Scan + Sort at 8,000
+  rows (cost ~655). Added `tasks_user_active_position_idx` on
+  `(user_id, board_position, created_at) where completed_at is null`,
+  matching the query exactly; re-verified the same query now uses an Index
+  Scan (cost ~52).
+- The CRM archive view (same file) fetches completed tasks ordered by
+  `completed_at desc`. No existing index covered completed tasks at all —
+  both existing partial indexes are `where completed_at is null` — so this
+  was an unconditional Seq Scan regardless of table size. Added
+  `tasks_user_completed_at_idx` on `(user_id, completed_at desc) where
+  completed_at is not null`; re-verified an Index Scan is now used (cost
+  ~20, down from a Seq Scan with no index to fall back to).
+
+The pgvector HNSW index (`memory_chunks_embedding_idx`) is present and
+correctly defined, but at the 3,000-synthetic-row scale tested here
+Postgres's planner still preferred a Seq Scan + exact sort over the
+approximate HNSW index — this is expected, standard cost-based-planner
+behavior for a table this size (HNSW's own overhead isn't yet worth it), not
+a sign the index is missing or broken; the planner will switch to it
+automatically as the real vault grows, no application change needed.
+
+The Home dashboard's "today" task query (`src/lib/home/data.ts`) uses an
+`.or()` across three different columns (`urgency`, `key`, `due_date`), which
+cannot be served by a single btree index — left as-is because the result set
+is capped at 8 rows and scoped to a single user's active-task count, which
+naturally stays small for a personal task manager even over years of use;
+adding a covering index here would be speculative optimization without a
+realistic scenario where it matters.
