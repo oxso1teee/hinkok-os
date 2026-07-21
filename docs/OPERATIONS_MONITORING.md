@@ -212,3 +212,58 @@ is capped at 8 rows and scoped to a single user's active-task count, which
 naturally stays small for a personal task manager even over years of use;
 adding a covering index here would be speculative optimization without a
 realistic scenario where it matters.
+
+## Error tracking (`[P0-OBS2-01]`)
+
+Server-side exceptions are only visible in Vercel's own logs today, after
+the fact, with no aggregation or alerting — this is a real gap the checklist
+flags. `@sentry/nextjs` is wired in (`sentry.server.config.ts`,
+`sentry.edge.config.ts`, `src/instrumentation.ts` exporting `onRequestError`
+via Sentry's `captureRequestError`), but is **off by default**: nothing is
+sent anywhere until `SENTRY_DSN` is set. Creating a Sentry project (or
+self-hosted instance) and obtaining that DSN is a one-time manual account
+step no amount of code can do — set it once in Vercel's environment
+variables and redeploy to activate.
+
+Verified in this repository (not just by reading the code): a clean
+production build succeeds with the integration present; the dev server
+starts and `/login` + `/api/ping` both work identically whether `SENTRY_DSN`
+is unset or set to a syntactically valid but unreachable DSN (confirming the
+SDK fails silently rather than crashing the app when delivery isn't
+possible — its documented, intended behavior). Not verified: an actual event
+arriving in a real Sentry project, since this session has no real DSN to
+send to.
+
+A real build issue was found and fixed while adding this: `next build`
+started reliably hitting a JavaScript heap OOM during its own internal
+"Running TypeScript..." pass once `@sentry/nextjs`'s large type surface was
+added (reproduced twice, independent of available system memory at the
+time). Fixed by setting `typescript: { ignoreBuildErrors: true }` in
+`next.config.ts` — safe because `npm run typecheck` (a separate `tsc
+--noEmit` pass) already runs earlier in `npm run ci`, so this removes a
+redundant, OOM-prone check rather than any real type-safety coverage.
+
+## Uptime monitoring (`[P0-OBS2-02]`)
+
+The checklist suggests pinging `/api/internal/db-health` from an external
+uptime service. That route is **disabled in production** —
+`if (process.env.NODE_ENV !== "development") return 404` — a real doc/code
+discrepancy found while implementing this item, not something to route
+around silently. It also returns diagnostic detail (`entityCount`) not safe
+to expose on a route any external service can reach.
+
+Added a separate, minimal, public route instead: `GET /api/ping` (in
+`proxy.ts`'s `PUBLIC_PATHS`, no session/API-secret required, not rate
+limited — uptime services poll every 1–5 minutes and a 429 would read as a
+false-positive outage). It does one lightweight `head: true` count query
+against `personal_settings` to confirm the database is actually reachable,
+and returns `{"ok":true}` / 200 on success or `{"ok":false}` / 503 on
+failure — nothing else. Verified locally: returns 200 with a healthy
+database.
+
+To activate real external monitoring: point any uptime checker (UptimeRobot,
+Better Uptime, a cron-based ping service, or similar) at
+`https://<your-deployment>/api/ping` on a 1–5 minute interval, alerting on a
+non-200 response or a request timeout. Creating an account with such a
+service is, like Sentry, a manual step outside what this codebase can do on
+its own.

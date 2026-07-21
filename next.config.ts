@@ -34,6 +34,15 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  typescript: {
+    // `npm run typecheck` (a separate `tsc --noEmit` step) already runs
+    // before the build in `npm run ci`, so this doesn't skip type-safety —
+    // it removes Next's own redundant internal type-check, which started
+    // hitting Node's default heap limit once @sentry/nextjs's large type
+    // surface was added (confirmed reproducible: `next build` alone OOMs on
+    // "Running TypeScript..." even with typecheck passing cleanly).
+    ignoreBuildErrors: true,
+  },
   async headers() {
     return [
       {

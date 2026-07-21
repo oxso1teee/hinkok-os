@@ -64,6 +64,7 @@ const SECRET_VARIABLES = [
   "CRON_SECRET",
   "RECOVERY_CODE",
   "SCHEDULED_BACKUP_PASSPHRASE",
+  "SENTRY_DSN",
 ] as const;
 
 const PLACEHOLDER_PATTERNS = [
@@ -300,6 +301,19 @@ function validateGroups(
       message:
         "SCHEDULED_BACKUP_PASSPHRASE is set but Telegram is not configured, so the weekly cron backup has nowhere to deliver the file.",
     });
+  }
+
+  const sentryDsn = clean(environment, "SENTRY_DSN");
+  if (sentryDsn) {
+    try {
+      new URL(sentryDsn);
+    } catch {
+      errors.push({
+        code: "invalid_sentry_dsn",
+        variable: "SENTRY_DSN",
+        message: "SENTRY_DSN must be a valid URL.",
+      });
+    }
   }
 
   const serviceAccountVariables = [

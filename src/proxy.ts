@@ -21,6 +21,7 @@ const PUBLIC_PATHS = new Set([
   "/api/insights/weekly",
   "/api/cron/sync-calendar",
   "/api/cron/backup",
+  "/api/ping",
 ]);
 
 function applyContentSecurityPolicy(
