@@ -271,3 +271,37 @@ Complete this list immediately after deployment:
   changed manually.
 - Use `docs/OPERATIONS_MONITORING.md` for the non-destructive recovery sequence
   and post-rollback job verification.
+- For a full rollback runbook (application, database migrations, and the
+  combined worst case), see `docs/ROLLBACK.md`.
+
+## 12. Staging and preview deployments
+
+This project does not run a separate staging Vercel project or a separate
+Supabase database. It uses Vercel's built-in **Preview Deployments**
+instead: pushing any branch other than `main` (or opening a PR) gets its own
+`https://hinkok-os-git-<branch>-<account>.vercel.app` URL automatically, at
+no extra setup cost, without provisioning anything.
+
+**The one thing this does *not* give you**: a preview deployment reads the
+same `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` and every other
+environment variable as production, unless you explicitly configure separate
+values for the "Preview" environment in Vercel's project settings. By
+default, that means **a preview deployment reads and writes the real
+production database** — the same tasks, journal entries, finance
+transactions, and audit log a real deployment would.
+
+Given this app has a single real user and no throwaway test data of its own,
+the practical rule is:
+
+- Preview deployments are safe and useful for reviewing **UI/visual**
+  changes (does this page look right, does this component render correctly)
+  without touching data.
+- **Do not** exercise any data-writing flow (create a task, save a journal
+  entry, run a manual sync, submit a backup restore) against a preview URL —
+  it acts on real personal data, not a sandbox.
+- A separate Supabase project + separate secrets for a true isolated staging
+  environment remains a legitimate future upgrade if this app ever needs
+  heavier pre-merge testing, but was intentionally not built out for now —
+  the cost (a second database, a second set of every secret, migrations
+  applied twice on every schema change) isn't justified for a single-user
+  personal project at its current scale.
